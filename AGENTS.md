@@ -9,7 +9,10 @@ https://www.validitysg.io, and keep operator guides in docs/validator.md and doc
 
 The user moved testing to Bittensor testnet with synthetic RN evaluations and production deployment
 practices. Read subnet_design.md and docs/validator.md. Do not revive the retired local chain or same-host
-multi-validator harness. The netuid is user-supplied. Never invent one or reuse prior journals/wallets.
+multi-validator harness. The user registered testnet subnet 568; defaults are network=test, netuid=568.
+Hotkey registration is handled manually by the user. Do not register hotkeys or spend funds
+automatically. Keep wallet names, the operator roster and registration status out of documentation and
+templates. Never reuse prior development journals/wallets.
 The target Hippius bucket is validity-testnet. Every operator runs independently with its own hotkey,
 ACL token and private recovery journal. Secrets belong in ignored mode-0600 .env files; cryptographic
 wallet/TLS key files are protected read-only mounts. Never print secrets, resolved compose environments,

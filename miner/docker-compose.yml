@@ -27,7 +27,7 @@ services:
     environment:
       MINER_NETWORK: test
       MINER_CHAIN_GENESIS: "${MINER_CHAIN_GENESIS:?}"
-      MINER_NETUID: "${MINER_NETUID:?}"
+      MINER_NETUID: "${MINER_NETUID:-568}"
       MINER_WALLET_PATH: /wallets
       MINER_WALLET_NAME: "${MINER_WALLET_NAME:?}"
       MINER_HOTKEY_NAME: "${MINER_HOTKEY_NAME:?}"

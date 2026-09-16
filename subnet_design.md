@@ -8,6 +8,8 @@ The first market is travel nursing agencies. RNs prove the loop; NPs/PAs prove t
 
 ## Current release: synthetic evaluation on testnet
 
+Validity is registered on Bittensor testnet as subnet `568`. Runtime and deployment defaults are `network=test`, `netuid=568`.
+
 The data is fictional and uses `ZZ-TEST`, `TEST-*` license identifiers, and `scope=synthetic-rn`. Five equally weighted cases exercise active, suspended, ambiguous, unavailable-source and no-match outcomes. This release tests distributed operation and recovery. It does not measure real board verification accuracy.
 
 1. A validator reads registration and public miner endpoints through its chain sidecar.
@@ -36,7 +38,7 @@ The pilot reader uses an operator-maintained validator hotkey allowlist. It pres
 
 ## Deployment gates
 
-The deployment is testnet-only, uses the verified testnet genesis, and requires a supplied netuid and actual subnet tempo. Each operator starts with a fresh state volume, registered hotkey, validator permit and trusted TLS material. No subnet registration, stake transfer, hyperparameter mutation or bucket creation occurs automatically.
+The deployment is testnet-only, uses the verified testnet genesis, and defaults to netuid `568`. Operators must still configure the actual subnet tempo. Each operator starts with a fresh state volume, registered hotkey and trusted TLS material; validators also need a validator permit. Participant hotkeys must be registered before starting the evaluation loop. No subnet registration, stake transfer, hyperparameter mutation or bucket creation occurs automatically.
 
 Completion on testnet requires a full evaluation round, independently confirmed weight rows, verified Hippius readback from all expected validators, and a restart/outage recovery exercise. The runnable synthetic reference miner in `miner/` implements the signed HTTPS exchange using the shared protocol package. Its deployment and admission requirements are in `docs/miner.md`.
 

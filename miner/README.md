@@ -1,6 +1,6 @@
 # Validity miner
 
-Runnable synthetic RN reference miner for Bittensor testnet.
+Runnable synthetic RN reference miner for Bittensor testnet. Defaults: `network=test`, `netuid=568`. Participant hotkey registration is required before startup.
 
 - [Operator setup and deployment](../docs/miner.md)
 - [Service entry point](src/validity_miner/main.py)

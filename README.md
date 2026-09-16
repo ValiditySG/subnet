@@ -6,7 +6,7 @@ Validity is a Bittensor subnet for evidence-backed healthcare credential verific
 
 The pilot focuses on registered nurses working with travel nursing agencies. RNs prove the verification loop; NPs and PAs follow commercial validation; physicians are the longer-term market.
 
-The current release runs **synthetic RN evaluations on Bittensor testnet**. Validators score miner responses, submit weights to the chain, and publish hotkey-signed scores to Hippius. Synthetic results do not establish real nursing license status.
+The current release supports **synthetic RN evaluations on Bittensor testnet, subnet 568** (`network=test`, `netuid=568`). Validators score miner responses, submit weights to the chain, and publish hotkey-signed scores to Hippius. Synthetic results do not establish real nursing license status.
 
 Runnable implementations live in [`miner/`](miner/) and [`validator/`](validator/), with a shared signed exchange protocol.
 

@@ -2,6 +2,8 @@
 
 Weights go to Bittensor; raw scores go directly to Hippius. Each validator operator uses its own hotkey and dedicated ACL credential pair, loaded from its private `.env`.
 
+The deployment defaults to Bittensor testnet (`network=test`), netuid `568`, and bucket `validity-testnet`. Signed reports require evaluations by admitted participants.
+
 ## Bucket layout
 
 ```text
@@ -26,14 +28,14 @@ Bucket-wide tokens do not isolate directories. Signatures detect alteration and 
 
 ## Independent reader
 
-Create a separate mode-0600 `.env` from [the reader example](../envs/reader/.env.example). Use a READ-capable token and the actual admitted validator hotkeys. Keep the credentials server-side. The pilot uses an explicit allowlist; admission is not automatically inferred from stake or historic registration.
+Create a separate mode-0600 `.env` from [the reader example](../envs/reader/.env.example). It sets the testnet genesis and `HIPPIUS_NETUID=568`; the reader also defaults to netuid `568`. Use a READ-capable token and the actual admitted validator hotkeys. Keep the credentials server-side. The pilot uses an explicit allowlist; admission is not automatically inferred from stake or historic registration.
 
 ```sh
 cd validator
 uv run --frozen python -m validator.reporting.check   --env-file ../envs/reader/.env --epoch-start <epoch-start>
 ```
 
-This verifies every configured validator's signature in a common source/policy window. Any number of validators is supported; there is no three-validator requirement. Chain weights must be checked independently.
+This verifies every configured validator's signature in a common source/policy window. Any number of validators is supported. Chain weights must be checked independently.
 
 For a trusted application backend:
 

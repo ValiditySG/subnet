@@ -3,7 +3,7 @@ name: validity-testnet
 x-validator-environment: &validator-environment
   VALIDATOR_NETWORK: test
   VALIDATOR_MODE: synthetic
-  VALIDATOR_NETUID: "${VALIDATOR_NETUID:?Set the registered testnet netuid in .env}"
+  VALIDATOR_NETUID: "${VALIDATOR_NETUID:-568}"
   VALIDATOR_CHAIN_GENESIS: "${VALIDATOR_CHAIN_GENESIS:?Set the verified testnet genesis hash}"
   VALIDATOR_TEMPO: "${VALIDATOR_TEMPO:?Set the actual subnet tempo}"
   VALIDATOR_WALLET_PATH: /wallets
@@ -39,7 +39,7 @@ services:
       PYLON_BLOCK_DURATION_SECONDS: "12"
       PYLON_ID_VALIDATOR_WALLET_NAME: "${VALIDATOR_WALLET_NAME:?}"
       PYLON_ID_VALIDATOR_HOTKEY_NAME: "${VALIDATOR_HOTKEY_NAME:?}"
-      PYLON_ID_VALIDATOR_NETUID: "${VALIDATOR_NETUID:?}"
+      PYLON_ID_VALIDATOR_NETUID: "${VALIDATOR_NETUID:-568}"
       PYLON_ID_VALIDATOR_TOKEN: "${VALIDATOR_PYLON_IDENTITY_TOKEN:?}"
     volumes:
       - ${HOST_WALLET_DIR:?}:/wallets:ro

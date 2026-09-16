@@ -27,7 +27,7 @@ class Settings(WalletSettings):
     """Synthetic evaluation is an explicit release scope, never real RN verification."""
 
     network: Literal["test"] = "test"
-    netuid: int = Field(ge=1, le=65535)
+    netuid: int = Field(default=568, ge=1, le=65535)
     chain_genesis: Literal["0x8f9cf856bf558a14440e75569c9e58594757048d7b3a84b5d25f6bd978263105"]
     mode: Literal["synthetic"] = "synthetic"
     fixture_dir: Path = SYNTHETIC_DATA

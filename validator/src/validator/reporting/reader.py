@@ -31,7 +31,7 @@ class ReaderSettings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="HIPPIUS_", extra="ignore")
     chain_genesis: ChainId = Field()
-    netuid: int = Field(ge=1, le=65535)
+    netuid: int = Field(default=568, ge=1, le=65535)
     validators: frozenset[str] = Field(min_length=1)
     bucket: str = Field(min_length=3)
     host: Literal["127.0.0.1", "::1"] = "127.0.0.1"

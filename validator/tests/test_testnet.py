@@ -148,7 +148,12 @@ def test_deadline_is_checked_before_network_access() -> None:
         exchange(client, "https://8.8.8.8/v1/evaluate", signed)
 
 
-def test_operator_config_has_no_local_network_or_default_netuid(tmp_path: Path) -> None:
+def test_operator_config_defaults_to_testnet_568_and_rejects_other_networks(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("VALIDATOR_NETUID", raising=False)
+    monkeypatch.delenv("VALIDATOR_NETWORK", raising=False)
     config = {
         "wallet_name": "operator",
         "hotkey_name": "default",
@@ -170,8 +175,8 @@ def test_operator_config_has_no_local_network_or_default_netuid(tmp_path: Path) 
         with pytest.raises(ValidationError):
             Settings.model_validate(config | change)
     del config["netuid"]
-    with pytest.raises(ValidationError):
-        Settings.model_validate(config)
+    defaults = Settings.model_validate(config)
+    assert (defaults.network, defaults.netuid) == ("test", 568)
 
 
 def test_chain_gate_rejects_wrong_subnet_absent_registration_and_revoked_permit(

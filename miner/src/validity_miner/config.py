@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="MINER_", extra="ignore", hide_input_in_errors=True)
     network: Literal["test"] = "test"
     chain_genesis: Literal["0x8f9cf856bf558a14440e75569c9e58594757048d7b3a84b5d25f6bd978263105"]
-    netuid: int = Field(ge=1, le=65535)
+    netuid: int = Field(default=568, ge=1, le=65535)
     wallet_path: Path = Path("/wallets")
     wallet_name: str = Field(min_length=1)
     hotkey_name: str = Field(min_length=1)

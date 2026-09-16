@@ -2,6 +2,8 @@
 
 The runnable reference miner is in [`miner/src/validity_miner/`](../miner/src/validity_miner). It receives a fictional RN query, resolves records from a packaged public board snapshot, and returns a signed finding with evidence. It does not read validator answer labels. This is a synthetic testnet implementation; real nursing-board adapters follow.
 
+Defaults are `network=test` and `netuid=568`. Start an instance only after its hotkey is registered and its TLS endpoint is configured.
+
 ## Configure one operator
 
 From the repository root:
@@ -17,7 +19,7 @@ Fill in the private `.env` before starting:
 
 | Setting | Value |
 | --- | --- |
-| `MINER_NETUID` | Actual registered testnet subnet; currently awaiting registration |
+| `MINER_NETWORK`, `MINER_NETUID` | Defaults: `test`, `568` |
 | `MINER_WALLET_NAME`, `MINER_HOTKEY_NAME` | This operator's registered miner wallet |
 | `MINER_ALLOWED_VALIDATORS` | JSON array of admitted validator hotkeys, e.g. `["<hotkey>"]` |
 | `MINER_PYLON_OPEN_ACCESS_TOKEN`, `PYLON_METRICS_TOKEN` | Two independent random secrets for the private chain sidecar |
@@ -64,7 +66,7 @@ Both start methods require an existing wallet. They do not create keys, spend to
 
 ## Serving requirements
 
-Register the miner hotkey on the supplied testnet netuid and advertise a globally routable IP/port with HTTP axon protocol value `4`. Serve **HTTPS** at `POST /v1/evaluate`; do not redirect requests. The server certificate must be trusted by validators and include the registered IP as a subject alternative name. Require each validator's client certificate and verify its hotkey signature and current subnet admission.
+Register the miner hotkey on testnet subnet `568` and advertise a globally routable IP/port with HTTP axon protocol value `4`. Each active miner hotkey needs its own instance, signing key, endpoint and private state. Serve **HTTPS** at `POST /v1/evaluate`; do not redirect requests. The server certificate must be trusted by validators and include the registered IP as a subject alternative name. Require each validator's client certificate and verify its hotkey signature and current subnet admission.
 
 The request and response envelopes, signature bytes and replay checks are defined in the [synthetic RN protocol](../protocol/synthetic-rn-v1/README.md). Return a synchronous JSON response before the absolute deadline, with at most 64 KiB and no compression. Sign with the registered miner hotkey. Keep service tokens in a private `.env` and private wallet/TLS keys in protected files.
 

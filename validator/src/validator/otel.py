@@ -72,11 +72,11 @@ class OtelSettings(BaseSettings):
         default="",
         validation_alias=AliasChoices("VALIDATOR_OTEL_SERVICE_VERSION", "OTEL_SERVICE_VERSION", "GIT_SHA"),
     )
-    # Sourced from the deployment's existing ``.env`` (``NETUID`` / ``BITTENSOR_NETWORK``).
-    netuid: str = Field(default="", validation_alias=AliasChoices("VALIDATOR_OTEL_NETUID", "VALIDATOR_NETUID"))
+    # Match the runtime defaults; explicit telemetry overrides remain supported.
+    netuid: str = Field(default="568", validation_alias=AliasChoices("VALIDATOR_OTEL_NETUID", "VALIDATOR_NETUID"))
     bittensor_network: str = Field(
         default="test",
-        validation_alias=AliasChoices("VALIDATOR_OTEL_BITTENSOR_NETWORK", "BITTENSOR_NETWORK"),
+        validation_alias=AliasChoices("VALIDATOR_OTEL_BITTENSOR_NETWORK", "VALIDATOR_NETWORK", "BITTENSOR_NETWORK"),
     )
 
     @property

@@ -11,10 +11,10 @@ The miner registers its public IP/port with axon protocol `4` and accepts `POST 
 The HTTP request is `SignedRequest` from [signed-request.schema.json](signed-request.schema.json):
 
 ```json
-{"task":{"version":"validity.rn-exchange.v1","chain_genesis":"0x...","netuid":123,"validator_hotkey":"...","miner_hotkey":"...","request":{}},"signature":"..."}
+{"task":{"version":"validity.rn-exchange.v1","chain_genesis":"0x...","netuid":568,"validator_hotkey":"...","miner_hotkey":"...","request":{}},"signature":"..."}
 ```
 
-`request` follows [request.schema.json](request.schema.json). The netuid above is illustrative. Use the actual registered subnet. Canonical bytes are UTF-8 JSON with recursively sorted keys, compact separators, ASCII escaping, and all schema default fields included. Timestamps use UTC and the serializer's `Z` representation. Sign `b"validity.rn-request.v1\n" + canonical(task)`; encode the 64-byte SR25519 signature as lowercase hexadecimal.
+`request` follows [request.schema.json](request.schema.json). The deployment defaults are `network=test`, `netuid=568`. Signed messages always include the chain genesis and netuid explicitly; readers never infer missing signed fields from deployment defaults. Canonical bytes are UTF-8 JSON with recursively sorted keys, compact separators, ASCII escaping, and all schema default fields included. Timestamps use UTC and the serializer's `Z` representation. Sign `b"validity.rn-request.v1\n" + canonical(task)`; encode the 64-byte SR25519 signature as lowercase hexadecimal.
 
 The miner validates TLS, signature, chain/subnet, expected miner hotkey, registered validator admission and the task's absolute deadline before processing. Reject reused task IDs or return the original response idempotently. Never accept an old response as a new assignment.
 

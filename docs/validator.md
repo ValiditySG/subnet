@@ -1,6 +1,6 @@
 # Run a Validity validator on testnet
 
-This release uses fictional RN evaluations with production deployment practices. Run one operator identity on each host. The subnet netuid will be supplied after registration.
+This release uses fictional RN evaluations with production deployment practices. Defaults are `network=test` and `netuid=568`. Run one operator identity on each host and start only after its hotkey is registered and has a validator permit.
 
 ## Required operator configuration
 
@@ -16,7 +16,7 @@ This creates `envs/deployed/.env` with mode `0600` and distinct random chain-sid
 | Setting                                              | Value                                                                     |
 | ---------------------------------------------------- | ------------------------------------------------------------------------- |
 | `VALIDATOR_IMAGE`                                    | Published validator image with `@sha256:<digest>`                         |
-| `VALIDATOR_NETUID`                                   | Actual registered testnet subnet                                          |
+| `VALIDATOR_NETWORK`, `VALIDATOR_NETUID`             | Defaults: `test`, `568`                                                   |
 | `VALIDATOR_TEMPO`                                    | Actual subnet tempo; do not copy an assumed development value             |
 | `VALIDATOR_WALLET_NAME`, `VALIDATOR_HOTKEY_NAME`     | This operator's registered wallet                                         |
 | `HOST_WALLET_DIR`                                    | Absolute wallet directory with the signing hotkey and public coldkey only |
