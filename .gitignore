@@ -5,3 +5,10 @@ __pycache__/
 .env
 .env.*
 !.env.example
+localnet/logs/
+localnet/state/
+.pytest_cache/
+.ruff_cache/
+
+# Local source transition pointer
+localnet/fixtures/active-version

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installer for the {{ subnet_name }} validator.
+# Installer for the Validity validator.
 # Sets up the working directory, .env, and a cron job that keeps docker-compose.yml in sync.
 
 set -euo pipefail
@@ -7,7 +7,7 @@ set -euo pipefail
 # ENV_NAME is both the deploy-config branch suffix (deploy-config-<ENV_NAME>) and the
 # OpenTelemetry deployment.environment.name attribute written to .env below.
 ENV_NAME="${1:-production}"
-WORKING_DIRECTORY=${2:-~/{{ working_dir_name }}/}
+WORKING_DIRECTORY=${2:-~/validity-validator/}
 
 mkdir -p "${WORKING_DIRECTORY}"
 WORKING_DIRECTORY=$(realpath "${WORKING_DIRECTORY}")
@@ -16,8 +16,8 @@ ENV_FILE="${WORKING_DIRECTORY}/.env"
 if [ ! -f "${ENV_FILE}" ]; then
     echo "Creating .env file..."
 
-    read -r -p "Enter BITTENSOR_NETWORK [{{ default_network }}]: " BITTENSOR_NETWORK </dev/tty
-    BITTENSOR_NETWORK=${BITTENSOR_NETWORK:-{{ default_network }}}
+    read -r -p "Enter BITTENSOR_NETWORK [ws://127.0.0.1:9944]: " BITTENSOR_NETWORK </dev/tty
+    BITTENSOR_NETWORK=${BITTENSOR_NETWORK:-ws://127.0.0.1:9944}
 
     read -r -p "Enter HOST_WALLET_DIR [~/.bittensor/wallets]: " HOST_WALLET_DIR </dev/tty
     HOST_WALLET_DIR=${HOST_WALLET_DIR:-~/.bittensor/wallets}
@@ -31,7 +31,7 @@ if [ ! -f "${ENV_FILE}" ]; then
     VALIDATOR_PYLON_OPEN_ACCESS_TOKEN=$(openssl rand -hex 32)
     PYLON_METRICS_TOKEN=$(openssl rand -hex 32)
     PROMETHEUS_PROXY_SECRET_KEY=$(openssl rand -hex 32)
-    NETUID={{ default_netuid }}
+    NETUID=2
 
     read -r -p "Enter SENTRY_DSN (optional, press Enter to skip): " SENTRY_DSN </dev/tty
     SENTRY_DSN=${SENTRY_DSN:-}
@@ -61,7 +61,7 @@ if ! grep -q '^ENVIRONMENT=' "${ENV_FILE}"; then
     echo "ENVIRONMENT=${ENV_NAME}" >> "${ENV_FILE}"
 fi
 
-GITHUB_URL="https://raw.githubusercontent.com/{{ github_org }}/{{ github_repo }}/refs/heads"
+GITHUB_URL="https://raw.githubusercontent.com/ValiditySG/subnet/refs/heads"
 UPDATE_SCRIPT="${WORKING_DIRECTORY}/update_compose.sh"
 UPDATE_URL="${GITHUB_URL}/deploy-config-${ENV_NAME}/installer/update_compose.sh"
 
@@ -79,10 +79,10 @@ printf -v UPDATE_SCRIPT_Q "%q" "${UPDATE_SCRIPT}"
 printf -v ENV_NAME_Q "%q" "${ENV_NAME}"
 printf -v WORKING_DIRECTORY_Q "%q" "${WORKING_DIRECTORY}"
 
-CRON_CMD="*/15 * * * * curl -fsSL ${UPDATE_URL_Q} -o ${UPDATE_SCRIPT_Q} && chmod +x ${UPDATE_SCRIPT_Q} && ${UPDATE_SCRIPT_Q} ${ENV_NAME_Q} ${WORKING_DIRECTORY_Q} # {{ cron_tag }}"
+CRON_CMD="*/15 * * * * curl -fsSL ${UPDATE_URL_Q} -o ${UPDATE_SCRIPT_Q} && chmod +x ${UPDATE_SCRIPT_Q} && ${UPDATE_SCRIPT_Q} ${ENV_NAME_Q} ${WORKING_DIRECTORY_Q} # VALIDITY_VALIDATOR_UPDATE"
 
 EXISTING_CRONTAB="$(crontab -l 2>/dev/null || true)"
-FILTERED_CRONTAB="$(printf "%s\n" "${EXISTING_CRONTAB}" | grep -F -v "{{ cron_tag }}" || true)"
+FILTERED_CRONTAB="$(printf "%s\n" "${EXISTING_CRONTAB}" | grep -F -v "VALIDITY_VALIDATOR_UPDATE" || true)"
 if [ -n "${FILTERED_CRONTAB}" ]; then
     { printf "%s\n" "${FILTERED_CRONTAB}"; printf "%s\n" "${CRON_CMD}"; } | crontab -
 else

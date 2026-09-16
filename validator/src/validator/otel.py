@@ -58,7 +58,7 @@ class OtelSettings(BaseSettings):
         default="",
         validation_alias=AliasChoices("VALIDATOR_OTEL_EXPORTER_OTLP_ENDPOINT", "OTEL_EXPORTER_OTLP_ENDPOINT"),
     )
-    service_namespace: str = "sn{{ default_netuid }}-{{ subnet_slug }}"
+    service_namespace: str = "sn2-validity"
     service_name: str = "validator"
     deployment_environment: str = Field(
         default="production",
@@ -73,9 +73,9 @@ class OtelSettings(BaseSettings):
         validation_alias=AliasChoices("VALIDATOR_OTEL_SERVICE_VERSION", "OTEL_SERVICE_VERSION", "GIT_SHA"),
     )
     # Sourced from the deployment's existing ``.env`` (``NETUID`` / ``BITTENSOR_NETWORK``).
-    netuid: str = Field(default="{{ default_netuid }}", validation_alias=AliasChoices("VALIDATOR_OTEL_NETUID", "NETUID"))
+    netuid: str = Field(default="2", validation_alias=AliasChoices("VALIDATOR_OTEL_NETUID", "NETUID"))
     bittensor_network: str = Field(
-        default="{{ default_network }}",
+        default="ws://127.0.0.1:9944",
         validation_alias=AliasChoices("VALIDATOR_OTEL_BITTENSOR_NETWORK", "BITTENSOR_NETWORK"),
     )
 

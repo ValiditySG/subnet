@@ -23,20 +23,30 @@ echo "Starting docker compose..."
 (cd "$LOCALNET_DIR" && docker compose up -d --wait)
 
 echo "Syncing validator deps..."
-(cd "$REPO_ROOT/validator" && uv sync)
+(cd "$REPO_ROOT/validator" && uv sync --frozen)
 echo "Syncing miner deps..."
-(cd "$REPO_ROOT/miner" && uv sync)
+(cd "$REPO_ROOT/miner" && uv sync --frozen)
 
 echo "Running bootstrap..."
-uv run "$LOCALNET_DIR/bootstrap.py"
+uv run --frozen --project "$REPO_ROOT/miner" python "$LOCALNET_DIR/bootstrap.py"
+
+mkdir -p "$LOCALNET_DIR/logs"
 
 tmux new-session -d -s "$SESSION" -n main \
-  -c "$REPO_ROOT/validator" \
-  "uv run validator --env-file ../localnet/.env"
+  -c "$REPO_ROOT/miner" \
+  "PYTHONUNBUFFERED=1 uv run --frozen python ../localnet/miners/miner-honest.py -n 1 2>&1 | tee ../localnet/logs/miner.log"
+
+uv run --frozen --project "$REPO_ROOT/miner" python "$LOCALNET_DIR/check.py" wait-miner
+for profile in slow stale unsafe timeout malformed duplicate late; do
+  tmux new-window -t "$SESSION" -n "$profile" -c "$REPO_ROOT/miner" \
+    "PYTHONUNBUFFERED=1 uv run --frozen python ../localnet/miners/miner-$profile.py 2>&1 | tee ../localnet/logs/miner-$profile.log"
+  uv run --frozen --project "$REPO_ROOT/miner" python "$LOCALNET_DIR/check.py" wait-miner --profile "$profile"
+done
+(cd "$LOCALNET_DIR" && docker compose restart pylon)
 
 tmux split-window -h -t "$SESSION:main" \
-  -c "$REPO_ROOT/miner" \
-  "uv run miner -n 1"
+  -c "$REPO_ROOT/validator" \
+  "uv run --frozen validator --env-file ../localnet/.env 2>&1 | tee ../localnet/logs/validator.log"
 
 tmux select-pane -t "$SESSION:main.0"
 

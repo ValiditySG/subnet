@@ -1,31 +1,33 @@
 # Context
 
-This project is a template for a Bittensor subnet project. It is meant as a starting point for new projects,
-containing the necessary knowledge and structure to quickly bootstrap a new subnet. As an agent, use this
-template and modify it as needed. Once you start developing it, update this notice to reflect what the actual
-project is about and keep its template origin as a short note.
+Validity is a Bittensor subnet for evidence-backed healthcare credential verification. The MVP serves RNs
+at travel nursing agencies, targeting CA, TX, FL, NY and IL. NPs/PAs follow the RN proof; physicians follow
+commercial validation. The user's localnet-first direction is authoritative.
+
+Validity's local MVP runs RN evaluation across eight fixture profiles, persists complete rounds and scores,
+submits weight batches and verifies them directly on the chain. Real-source adapters and agency workflows follow. Read `subnet_design.md` and `localnet/README.md` first.
 
 ## Repository layout
 
 This is a monorepo with two **independent** uv projects plus shared local-development tooling:
 
-- `validator/` — Nexus-based subnet validator (own `pyproject.toml`, `uv.lock`, `.venv`); also holds the
+- `validator/` — Validity subnet validator (own `pyproject.toml`, `uv.lock`, `.venv`); also holds the
   production `Dockerfile`
 - `miner/` — Bittensor subnet miner (own `pyproject.toml`, `uv.lock`, `.venv`)
 - `localnet/` — Local subtensor + pylon + bootstrap + miner fixtures for end-to-end development
-- `installer/` — Copier-templated validator installer scripts (`install.sh.jinja`,
-  `update_compose.sh.jinja`, `README.md.jinja`); rendered by `copier copy` when adapting the template
-- `envs/deployed/` — Copier-templated production `docker-compose.yml.jinja` (validator + pylon);
+- `installer/` — Copier-rendered validator installer scripts (`install.sh`,
+  `update_compose.sh`, `README.md`); rendered by `copier copy` when adapting the template
+- `envs/deployed/` — Copier-rendered production `docker-compose.yml` (validator + pylon);
   the rendered repo is promoted on the `deploy-config-production` branch, with this compose file and the
   installer scripts as the operator-critical files
-- `.github/workflows/` — Copier-templated CI; `build-validator.yml.jinja` builds and pushes the validator
+- `.github/workflows/` — Copier-rendered CI; `build-validator.yml` builds and pushes the validator
   image to a registry on push to `deploy-build-*` branches
-- `copier.yml` — Copier question schema for adapting this template to a concrete subnet
-- `knowledge/` — Bittensor / Nexus / localnet domain knowledge
-- `docs/` — additional documentation
+- `protocol/localnet-v1/` — local RN request/response JSON schemas and semantics
+- `knowledge/` — Bittensor, validator runtime, and localnet domain knowledge
+- `docs/` — validator and miner guides (`validator.md`, `miner.md`) and implementation reports
 
 There is **no** top-level Python project and **no** uv workspace. Run `uv sync` inside `validator/` or `miner/`
-before working on it. There is no global `uv run` from the repo root.
+before working on it (use `--frozen`). There is no global `uv run` from the repo root.
 
 Developer quickstart for the end-to-end dev environment (subtensor + pylon + validator + miner): see
 `localnet/README.md`.
@@ -33,20 +35,16 @@ Developer quickstart for the end-to-end dev environment (subtensor + pylon + val
 Ruff and basedpyright config is duplicated between `validator/pyproject.toml` and `miner/pyproject.toml`. When
 changing tooling config, keep both in sync.
 
-## Adapting this repository to a new subnet
+## Current implementation workflow
 
-This template has to be adapted to an actual project at some point. When starting out, refer to the
-knowledge/tasks.project-bootstrap.md file. It contains workflows for:
+Rendering is complete; do not render this working repository again. The accepted local scope is in
+`subnet_design.md`. Follow the user-approved incremental order: local baseline, RN exchange, durable
+scoring/weights, failure/transition tests, real-source adapters, website integration. The parent workspace
+contains the detailed plan and research. External-source access does not block fixture development.
 
-- Bootstrapping the template
-- Designing the subnet
-- Implementing the validator
-- Setting up localnet
-- Adapting this repository to a new subnet
-- Generally bootstrapping the project
-
-If your task involves any of these, or the task is not clear, but it appears we are not done with the adapting
-yet, adhere strictly to the workflow described in that file and get that done first.
+Use `uv sync --frozen` and `uv run --frozen` within each independent project. The local fixture and smoke
+checker run through the miner project's frozen environment. All newly added miner behavior stays under
+`localnet/`; the existing `miner/` echo server remains a baseline.
 
 # Knowledge base
 
@@ -103,15 +101,15 @@ Skip for higher level tasks that do not touch the code.
 
 ### Observability
 
-`envs/deployed/docker-compose.yml.jinja` ships a Prometheus-based metrics stack:
+`envs/deployed/docker-compose.yml` ships a Prometheus-based metrics stack:
 `cadvisor` (per-container metrics), `node-exporter` (host metrics), a local
 `prometheus` service (image `bittensor_prometheus`) that scrapes `cadvisor`,
 the host `node-exporter`, and Pylon's `/metrics` (using the Bearer token from
-`PYLON_METRICS_TOKEN`, generated by `installer/install.sh.jinja`), and a
+`PYLON_METRICS_TOKEN`, generated by `installer/install.sh`), and a
 `prometheus-proxy` sidecar that remote-writes to `https://prometheus.bactensor.io`.
 
-The template's validator does **not** expose a `/metrics` endpoint and ships no
-project-specific metrics module — this is an intentional blank slate. When you
+The validator has credential event and operation-duration instruments in `credentials/pipeline.py`.
+It does **not** expose a `/metrics` endpoint or configure a metrics exporter in the current local slice. When you
 extend the validator (new payload creators, scorers, nodes, weight setters),
 treat metrics as first-class and follow Nexus's own conventions: inspect the
 installed Nexus package (`validator/.venv` after `uv sync`, starting from
@@ -120,19 +118,19 @@ metrics for its components (actors, engine...), and mirror that
 approach when adding observability to your validator. Every new subsystem
 should ship with at least one event counter and one latency histogram, named
 consistently with the Nexus patterns you find there. If you expose a validator
-`/metrics` endpoint, add it into `envs/deployed/docker-compose.yml.jinja`
-scrape targets and update `installer/README.md.jinja`.
+`/metrics` endpoint, add it into `envs/deployed/docker-compose.yml`
+scrape targets and update `installer/README.md`.
 
 #### Distributed tracing
 
-The validator emits OpenTelemetry traces, configured in `validator/src/validator/otel.py.jinja`
+The validator emits OpenTelemetry traces, configured in `validator/src/validator/otel.py`
 (rendered to `otel.py`) and wired in from `main()` right after `configure_logging`. Resource
 attributes **deliberately carry no operator hotkey** — the observability proxy adds it downstream;
 the structlog processors in `logging_config.py` stamp the same attributes onto every log line so logs
 and traces correlate.
 
 In deployment the validator exports to a `grafana/alloy` sidecar that tail-samples and forwards to an
-OTLP/HTTP upstream (`envs/deployed/alloy/config.alloy.jinja`). **`TRACES_UPSTREAM_*` are required by
+OTLP/HTTP upstream (`envs/deployed/alloy/config.alloy`). **`TRACES_UPSTREAM_*` are required by
 the sidecar** — Alloy crash-loops on startup without an endpoint and credentials. `update_compose.sh`
 keeps both `docker-compose.yml` and `alloy/config.alloy` in sync on operator hosts.
 
@@ -172,6 +170,14 @@ for higher level tasks that do not touch the code.
     - `uv run python -c '...'` / `uv run some/script.py` (code or script)
 
 # Documentation rules
+
+Keep public documentation and user-facing communication focused on Validity, its RN pilot, and its
+implementation. Avoid upstream framework branding, template history, and comparisons. Exact dependency
+identifiers and internal runtime guidance remain technical maintenance references, not product messaging.
+
+Keep the root README introductory, with the project website URL (`https://www.validitysg.io`) and links to
+the guides. Keep validator/miner setup, configuration, and quality checks in `docs/validator.md` and
+`docs/miner.md`. Do not describe a separate website repository in the README.
 
 Keep README.md, AGENTS.md, tests, docstrings, and code up to date and in sync. If one changes, update the
 others. Whenever updated, all information, claims, guides, commands, etc. in these files must be verified and

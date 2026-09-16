@@ -1,0 +1,43 @@
+name: Python quality checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  validator:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: validator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.11.0"
+          python-version: "3.14"
+      - run: uv sync --frozen
+      - run: uv run --frozen ruff check
+      - run: uv run --frozen ruff format --check
+      - run: uv run --frozen basedpyright
+      - run: uv run --frozen pytest -q --tb=line -r f
+
+  local-fixtures:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: miner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.11.0"
+          python-version: "3.14"
+      - run: uv sync --frozen
+      - run: uv run --frozen ruff check ../localnet/miners/fixture_runtime.py ../localnet/miners/miner-*.py ../localnet/check.py ../localnet/mvp.py
+      - run: uv run --frozen ruff format --check ../localnet/miners/fixture_runtime.py ../localnet/miners/miner-*.py ../localnet/check.py ../localnet/mvp.py
+      - run: uv run --frozen basedpyright ../localnet/miners/fixture_runtime.py ../localnet/miners/miner-*.py ../localnet/check.py ../localnet/mvp.py

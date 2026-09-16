@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "ProviderQuery": {
+      "additionalProperties": false,
+      "description": "Fictional identifiers that cannot be mistaken for a supported real board.",
+      "properties": {
+        "provider_ref": {
+          "pattern": "^fictional-[0-9]+$",
+          "title": "Provider Ref",
+          "type": "string"
+        },
+        "profession": {
+          "const": "RN",
+          "title": "Profession",
+          "type": "string"
+        },
+        "license_number": {
+          "pattern": "^TEST-[0-9]+$",
+          "title": "License Number",
+          "type": "string"
+        },
+        "jurisdiction": {
+          "const": "ZZ-TEST",
+          "default": "ZZ-TEST",
+          "title": "Jurisdiction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_ref",
+        "profession",
+        "license_number"
+      ],
+      "title": "ProviderQuery",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One local license lookup with an absolute UTC deadline.",
+  "properties": {
+    "protocol_version": {
+      "const": "validity.localnet.v1",
+      "default": "validity.localnet.v1",
+      "title": "Protocol Version",
+      "type": "string"
+    },
+    "task_id": {
+      "format": "uuid",
+      "title": "Task Id",
+      "type": "string"
+    },
+    "provider_query": {
+      "$ref": "#/$defs/ProviderQuery"
+    },
+    "checks": {
+      "items": {
+        "const": "fixture_license",
+        "type": "string"
+      },
+      "maxItems": 1,
+      "minItems": 1,
+      "title": "Checks",
+      "type": "array"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "deadline_at": {
+      "format": "date-time",
+      "title": "Deadline At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "task_id",
+    "provider_query",
+    "checks",
+    "issued_at",
+    "deadline_at"
+  ],
+  "title": "CredentialRequest",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

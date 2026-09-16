@@ -1,6 +1,6 @@
-# {{ subnet_name }} Validator Installer
+# Validity Validator Installer
 
-This directory contains scripts to install and maintain a {{ subnet_name }} validator node.
+This directory contains scripts to install and maintain a Validity validator node.
 
 ## Prerequisites
 
@@ -28,18 +28,18 @@ This directory contains scripts to install and maintain a {{ subnet_name }} vali
 ## Quick Installation
 
 ```bash
-curl -s https://raw.githubusercontent.com/{{ github_org }}/{{ github_repo }}/refs/heads/deploy-config-production/installer/install.sh | bash
+curl -s https://raw.githubusercontent.com/ValiditySG/subnet/refs/heads/deploy-config-production/installer/install.sh | bash
 ```
 
 This will:
-1. Create a working directory at `~/{{ working_dir_name }}/` (default).
+1. Create a working directory at `~/validity-validator/` (default).
 2. Prompt you for configuration values if `.env` does not exist.
 3. Fetch and run `update_compose.sh` once to set up `docker-compose.yml` and start the stack.
 4. Install a cron job that re-runs `update_compose.sh` every 15 minutes so the validator stays up to date.
 
 On first run the installer asks for:
 
-- `BITTENSOR_NETWORK` (default `{{ default_network }}`)
+- `BITTENSOR_NETWORK` (default `ws://127.0.0.1:9944`)
 - `HOST_WALLET_DIR` (default `~/.bittensor/wallets`)
 - `BITTENSOR_WALLET_NAME` (default `validator`)
 - `BITTENSOR_WALLET_HOTKEY_NAME` (default `default`)
@@ -49,7 +49,7 @@ On first run the installer asks for:
 
 Written to `<WORKING_DIRECTORY>/.env` on first run:
 
-- `NETUID` — subnet netuid (default: `{{ default_netuid }}`).
+- `NETUID` — subnet netuid (default: `2`).
 - `BITTENSOR_NETWORK` — Bittensor network address (e.g. `finney`, `ws://localhost:9944`).
 - `BITTENSOR_WALLET_NAME` / `BITTENSOR_WALLET_HOTKEY_NAME` — wallet identifiers consumed by pylon.
 - `HOST_WALLET_DIR` — host-side path to the Bittensor wallets directory (mounted read-only into pylon).
@@ -66,17 +66,17 @@ Written to `<WORKING_DIRECTORY>/.env` on first run:
 ## Custom Installation
 
 ```bash
-curl -s https://raw.githubusercontent.com/{{ github_org }}/{{ github_repo }}/refs/heads/deploy-config-production/installer/install.sh | bash -s -- [ENV_NAME] [WORKING_DIRECTORY]
+curl -s https://raw.githubusercontent.com/ValiditySG/subnet/refs/heads/deploy-config-production/installer/install.sh | bash -s -- [ENV_NAME] [WORKING_DIRECTORY]
 ```
 
 - `ENV_NAME`: branch suffix for `deploy-config-<ENV_NAME>`, also written to `.env` as the
   `ENVIRONMENT` / OTel `deployment.environment.name` attribute (defaults to `production`).
-- `WORKING_DIRECTORY`: where to install (defaults to `~/{{ working_dir_name }}/`).
+- `WORKING_DIRECTORY`: where to install (defaults to `~/validity-validator/`).
 
 Example:
 
 ```bash
-curl -s https://raw.githubusercontent.com/{{ github_org }}/{{ github_repo }}/refs/heads/deploy-config-production/installer/install.sh | bash -s -- production /opt/{{ working_dir_name }}
+curl -s https://raw.githubusercontent.com/ValiditySG/subnet/refs/heads/deploy-config-production/installer/install.sh | bash -s -- production /opt/validity-validator
 ```
 
 ## Updates
@@ -86,5 +86,5 @@ The validator updates itself automatically every 15 minutes via the cron job ins
 ## Manual Update
 
 ```bash
-curl -s https://raw.githubusercontent.com/{{ github_org }}/{{ github_repo }}/refs/heads/deploy-config-production/installer/update_compose.sh | bash -s -- [ENV_NAME] [WORKING_DIRECTORY]
+curl -s https://raw.githubusercontent.com/ValiditySG/subnet/refs/heads/deploy-config-production/installer/update_compose.sh | bash -s -- [ENV_NAME] [WORKING_DIRECTORY]
 ```

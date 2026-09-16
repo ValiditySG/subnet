@@ -70,4 +70,4 @@ reportUnusedImport = "warning"
 reportExplicitAny = "none"
 venvPath = "."
 venv = ".venv"
-extraPaths = ["src", ".venv/lib/python3.14/site-packages"]
+extraPaths = ["../localnet/miners", "src", ".venv/lib/python3.14/site-packages"]

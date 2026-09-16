@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Pulls the latest envs/deployed/docker-compose.yml and the Alloy traces config
-# from the deploy-config-${ENV_NAME} branch and restarts the {{ subnet_name }}
+# from the deploy-config-${ENV_NAME} branch and restarts the Validity
 # validator stack if anything changed.
 
 set -euo pipefail
@@ -8,7 +8,7 @@ set -euo pipefail
 # ENV_NAME is both the deploy-config branch suffix (deploy-config-${ENV_NAME}) and the
 # OpenTelemetry deployment.environment.name attribute backfilled into .env below.
 ENV_NAME="${1:-production}"
-WORKING_DIRECTORY="${2:-$HOME/{{ working_dir_name }}/}"
+WORKING_DIRECTORY="${2:-$HOME/validity-validator/}"
 
 mkdir -p "${WORKING_DIRECTORY}"
 cd "${WORKING_DIRECTORY}"
@@ -18,14 +18,14 @@ if [ -f "${ENV_FILE}" ] && ! grep -q '^ENVIRONMENT=' "${ENV_FILE}"; then
     echo "ENVIRONMENT=${ENV_NAME}" >> "${ENV_FILE}"
 fi
 
-GITHUB_URL="https://raw.githubusercontent.com/{{ github_org }}/{{ github_repo }}/refs/heads"
+GITHUB_URL="https://raw.githubusercontent.com/ValiditySG/subnet/refs/heads"
 BRANCH_URL="${GITHUB_URL}/deploy-config-${ENV_NAME}"
 
 UPDATED=false
 
 TEMP_FILES=()
 cleanup() {
-    if [ "{% raw %}${#TEMP_FILES[@]}{% endraw %}" -gt 0 ]; then
+    if [ "${#TEMP_FILES[@]}" -gt 0 ]; then
         rm -f "${TEMP_FILES[@]}"
     fi
 }
@@ -60,9 +60,9 @@ apply_file() {
     fi
 }
 
-COMPOSE_TEMP="$(mktemp "${TMPDIR:-/tmp}/{{ subnet_slug }}_update.XXXXXX")"
+COMPOSE_TEMP="$(mktemp "${TMPDIR:-/tmp}/validity_update.XXXXXX")"
 TEMP_FILES+=("${COMPOSE_TEMP}")
-ALLOY_TEMP="$(mktemp "${TMPDIR:-/tmp}/{{ subnet_slug }}_update.XXXXXX")"
+ALLOY_TEMP="$(mktemp "${TMPDIR:-/tmp}/validity_update.XXXXXX")"
 TEMP_FILES+=("${ALLOY_TEMP}")
 
 fetch_file "envs/deployed/docker-compose.yml" "${COMPOSE_TEMP}"

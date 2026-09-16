@@ -118,7 +118,7 @@ otelcol.processor.tail_sampling "traces" {
 
 		probabilistic {
 			sampling_percentage = 5
-			hash_salt           = "{{ subnet_slug }}-tail-sampling"
+			hash_salt           = "validity-tail-sampling"
 		}
 	}
 
