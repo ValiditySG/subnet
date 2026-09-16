@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import ssl
 from datetime import UTC, datetime
 from time import perf_counter
-from typing import Literal, override
+from typing import override
 
 import httpx
 from bittensor_wallet import Keypair, Wallet
@@ -30,100 +28,21 @@ from nexus.v1 import (
     format_host_for_url,
 )
 from opentelemetry import metrics
-from pydantic import Field
+from validity_protocol.exchange import MAX_EXCHANGE_BYTES as MAX_EXCHANGE_BYTES
+from validity_protocol.exchange import REQUEST_DOMAIN as REQUEST_DOMAIN
+from validity_protocol.exchange import RESPONSE_DOMAIN as RESPONSE_DOMAIN
+from validity_protocol.exchange import BoundResponse as BoundResponse
+from validity_protocol.exchange import SignedRequest as SignedRequest
+from validity_protocol.exchange import SignedResponse as SignedResponse
+from validity_protocol.exchange import TaskBinding as TaskBinding
+from validity_protocol.exchange import canonical as canonical
 
 from validator.config import Settings
-from validator.credentials.protocol import CredentialRequest, CredentialResponse, Digest, WireModel
-from validator.reporting.protocol import ChainId, HotkeyAddress
+from validator.credentials.protocol import CredentialRequest, CredentialResponse
 
-MAX_EXCHANGE_BYTES = 64 * 1024
-REQUEST_DOMAIN = b"validity.rn-request.v1\n"
-RESPONSE_DOMAIN = b"validity.rn-response.v1\n"
 meter = metrics.get_meter("validity.transport")
 events = meter.create_counter("validity.transport.events")
 duration = meter.create_histogram("validity.transport.duration", unit="s")
-
-
-def canonical(model: WireModel) -> bytes:
-    """Canonical JSON shared by independent miner implementations."""
-    return json.dumps(model.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
-
-
-class TaskBinding(WireModel):
-    """Bind the assignment to a chain and both participant hotkeys."""
-
-    version: Literal["validity.rn-exchange.v1"] = "validity.rn-exchange.v1"
-    chain_genesis: ChainId
-    netuid: int = Field(ge=1, le=65535)
-    validator_hotkey: HotkeyAddress
-    miner_hotkey: HotkeyAddress
-    request: CredentialRequest
-
-
-class SignedRequest(WireModel):
-    """The validator signature authenticates the complete assignment."""
-
-    task: TaskBinding
-    signature: str = Field(pattern=r"^[0-9a-f]{128}$")
-
-    @property
-    def request_hash(self) -> str:
-        return hashlib.sha256(canonical(self.task)).hexdigest()
-
-    def verify(self) -> None:
-        """Verify the validator signature.
-
-        Raises:
-            ValueError: If the assignment has been altered or impersonated.
-        """
-        if not Keypair(ss58_address=self.task.validator_hotkey).verify(
-            REQUEST_DOMAIN + canonical(self.task), bytes.fromhex(self.signature)
-        ):
-            raise ValueError("Invalid assignment signature")
-
-    @classmethod
-    def sign(cls, task: TaskBinding, key: Keypair) -> SignedRequest:
-        """Sign only assignments belonging to this hotkey.
-
-        Raises:
-            ValueError: If the signing identity differs.
-        """
-        if key.ss58_address != task.validator_hotkey or key.crypto_type != 1:
-            raise ValueError("Assignment signing identity differs")
-        return cls(task=task, signature=key.sign(REQUEST_DOMAIN + canonical(task)).hex())
-
-
-class BoundResponse(WireModel):
-    """The request hash prevents reuse across tasks, validators, subnets and chains."""
-
-    request_hash: Digest
-    response: CredentialResponse
-
-
-class SignedResponse(WireModel):
-    """The miner signs its result, including the complete assignment's digest."""
-
-    result: BoundResponse
-    signature: str = Field(pattern=r"^[0-9a-f]{128}$")
-
-    def verify(self, request: SignedRequest) -> CredentialResponse:
-        """Authenticate the expected miner before accepting its response.
-
-        Raises:
-            ValueError: If binding or miner signature verification fails.
-        """
-        response = self.result.response
-        if (
-            self.result.request_hash != request.request_hash
-            or response.task_id != request.task.request.task_id
-            or response.provider_ref != request.task.request.provider_query.provider_ref
-        ):
-            raise ValueError("Response assignment binding differs")
-        if not Keypair(ss58_address=request.task.miner_hotkey).verify(
-            RESPONSE_DOMAIN + canonical(self.result), bytes.fromhex(self.signature)
-        ):
-            raise ValueError("Invalid miner signature")
-        return response
 
 
 def target_url(neuron: Neuron) -> str:

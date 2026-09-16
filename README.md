@@ -8,6 +8,8 @@ The pilot focuses on registered nurses working with travel nursing agencies. RNs
 
 The current release runs **synthetic RN evaluations on Bittensor testnet**. Validators score miner responses, submit weights to the chain, and publish hotkey-signed scores to Hippius. Synthetic results do not establish real nursing license status.
 
+Runnable implementations live in [`miner/`](miner/) and [`validator/`](validator/), with a shared signed exchange protocol.
+
 ## Guides
 
 - [Validators](docs/validator.md)

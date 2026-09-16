@@ -39,7 +39,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: ./validator
+          context: .
           file: ./validator/Dockerfile
           platforms: linux/amd64
           push: true

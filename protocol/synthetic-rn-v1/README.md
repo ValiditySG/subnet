@@ -2,6 +2,8 @@
 
 `validity.synthetic-rn.v1` uses fictional RN identifiers in `ZZ-TEST`. The transport envelope is `validity.rn-exchange.v1`. This protocol is explicitly synthetic and is not a real-board verification API.
 
+Both runnable roles use the Python models in [`validity_protocol`](../src/validity_protocol). See the [miner guide](../../docs/miner.md) for the reference server and deployment instructions.
+
 ## HTTPS exchange
 
 The miner registers its public IP/port with axon protocol `4` and accepts `POST /v1/evaluate` over mutual TLS. Its server certificate must include that IP in its subject alternative names. The validator supplies a trusted client certificate. Both participants also authenticate messages using their registered SR25519 hotkeys.

@@ -4,7 +4,7 @@ FROM $BASE_IMAGE AS builder
 
 COPY --from=ghcr.io/astral-sh/uv@sha256:e49fde5daf002023f0a2e2643861ce9ca8a8da5b73d0e6db83ef82ff99969baf /uv /uvx /bin/
 
-WORKDIR /build
+WORKDIR /build/validator
 
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
@@ -14,11 +14,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml uv.lock ./
+COPY protocol/ /build/protocol/
+COPY validator/pyproject.toml validator/uv.lock ./
 
 RUN uv sync --frozen --no-install-project --no-dev --no-editable
 
-COPY src/ ./src/
+COPY validator/src/ ./src/
 
 RUN uv sync --frozen --no-dev --no-editable
 

@@ -38,6 +38,6 @@ The pilot reader uses an operator-maintained validator hotkey allowlist. It pres
 
 The deployment is testnet-only, uses the verified testnet genesis, and requires a supplied netuid and actual subnet tempo. Each operator starts with a fresh state volume, registered hotkey, validator permit and trusted TLS material. No subnet registration, stake transfer, hyperparameter mutation or bucket creation occurs automatically.
 
-Completion on testnet requires a full evaluation round, independently confirmed weight rows, verified Hippius readback from all expected validators, and a restart/outage recovery exercise. The protocol change requires compatible HTTPS miner implementations; the retired callback fixtures are not deployed.
+Completion on testnet requires a full evaluation round, independently confirmed weight rows, verified Hippius readback from all expected validators, and a restart/outage recovery exercise. The runnable synthetic reference miner in `miner/` implements the signed HTTPS exchange using the shared protocol package. Its deployment and admission requirements are in `docs/miner.md`.
 
 See [validator operations](docs/validator.md), [miner contract](docs/miner.md), and [score reporting](docs/score-reporting.md).

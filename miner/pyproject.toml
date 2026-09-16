@@ -1,0 +1,58 @@
+[project]
+name = "validity-miner"
+version = "0.1.0"
+description = "Validity synthetic RN testnet reference miner."
+requires-python = ">=3.14"
+dependencies = [
+    "validity-protocol", "bittensor-wallet==4.0.1", "bittensor-pylon-client==2.1.0",
+    "click>=8.3.2", "pydantic-settings>=2.14.0", "python-dotenv>=1.2.2",
+    "structlog>=25,<27", "uvicorn>=0.46", "opentelemetry-api~=1.41",
+]
+
+[project.scripts]
+miner = "validity_miner.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+exclude-newer = "11 days"
+
+[tool.uv.sources]
+validity-protocol = { path = "../protocol" }
+
+[dependency-groups]
+dev = ["basedpyright>=1.36.1", "ruff", "pytest", "httpx==0.28.1"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "TC005"]
+preview = true
+explicit-preview-rules = true
+extend-select = ["DOC501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["I", "F401"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error::pytest.PytestUnhandledThreadExceptionWarning",
+]
+
+[tool.basedpyright]
+pythonVersion = "3.14"
+typeCheckingMode = "strict"
+include = ["src", "tests"]
+verboseOutput = true
+useLibraryCodeForTypes = true
+reportMissingTypeStubs = "warning"
+reportUndefinedVariable = "error"
+reportUnusedImport = "warning"
+reportExplicitAny = "none"
+venvPath = "."
+venv = ".venv"
+extraPaths = ["src", ".venv/lib/python3.14/site-packages"]

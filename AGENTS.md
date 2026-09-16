@@ -20,7 +20,7 @@ Weights go to chain; signed raw scores go directly to real Hippius. Object layou
 Use a separate bucket per network/subnet. Bucket-wide tokens do not establish prefix isolation. Signatures
 establish authorship, not availability or truth. Private SQLite journals must not be shared across
 operators or used as the combined leaderboard store. Storage failure must not block weights. Test doubles
-live only under validator/tests; deployed code has no local storage backend or upload gateway.
+live only under validator/tests and miner/tests; deployed code has no local storage backend or upload gateway.
 
 Synthetic evaluation is the only implemented RN source. Keep scope=synthetic-rn and the fictional ZZ-TEST
 identifiers explicit. Real-source adapters and agency workflows follow. Do not claim that preparation,
@@ -30,16 +30,18 @@ a successful PUT, or a queued weight proposal establishes live testnet completio
 
 - validator/: independent Python 3.14 uv project, src, tests, locked dependencies, Dockerfile.
 - validator/src/validator/synthetic/: public fictional board snapshots and reviewed expected labels.
-- protocol/: versioned RN exchange and signed score report schemas.
+- miner/: independent Python 3.14 uv project and runnable synthetic RN miner.
+- protocol/: shared Python wire models plus versioned RN exchange and score-report schemas.
 - envs/deployed/: one-operator testnet Compose deployment and .env.example.
 - installer/: private config initialization and explicit digest-pinned deployment.
 - docs/: operator guides. knowledge/: internal domain/runtime references.
 
-Run uv sync --frozen and uv run --frozen inside validator/. There is no root uv project.
+Run uv sync --frozen and uv run --frozen inside validator/ or miner/. There is no root uv project.
 Before subnet design/code work, read knowledge/bittensor/INDEX.yaml and
 knowledge/bittensor/subnet.invariants.yaml directly; re-read indices after compaction. Then read relevant
-knowledge files. Preserve the validator-only rule: define miner contracts, never ship production miner
-implementations. Automated test servers remain test-only.
+knowledge files. The user explicitly requires runnable miner code for this pilot, overriding the generic
+validator-only reference guidance. Maintain miner/ as a synthetic testnet reference implementation,
+independent of validator expected-answer labels. Do not add real RN-source claims or restore a local chain.
 
 ## Runtime requirements
 

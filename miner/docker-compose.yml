@@ -1,0 +1,54 @@
+name: validity-testnet-miner
+services:
+  pylon:
+    image: backenddevelopersltd/bittensor-pylon@sha256:19372a57b1316b340971094aa067a6e39a957d6903dec2cd8b7f1d0335d9e0ad
+    restart: unless-stopped
+    init: true
+    environment:
+      PYLON_BITTENSOR_NETWORK: wss://test.finney.opentensor.ai:443
+      PYLON_OPEN_ACCESS_TOKEN: "${MINER_PYLON_OPEN_ACCESS_TOKEN:?}"
+      PYLON_METRICS_TOKEN: "${PYLON_METRICS_TOKEN:?}"
+      PYLON_IDENTITIES: '[]'
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging: &logging
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+  miner:
+    image: "${MINER_IMAGE:?Set the released miner image digest}"
+    user: "10001:10001"
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp:size=64m,mode=1777]
+    stop_grace_period: 45s
+    ports:
+      - "${MINER_PORT:-8443}:8443"
+    environment:
+      MINER_NETWORK: test
+      MINER_CHAIN_GENESIS: "${MINER_CHAIN_GENESIS:?}"
+      MINER_NETUID: "${MINER_NETUID:?}"
+      MINER_WALLET_PATH: /wallets
+      MINER_WALLET_NAME: "${MINER_WALLET_NAME:?}"
+      MINER_HOTKEY_NAME: "${MINER_HOTKEY_NAME:?}"
+      MINER_ALLOWED_VALIDATORS: "${MINER_ALLOWED_VALIDATORS:?}"
+      MINER_PYLON_ADDRESS: http://pylon:8000
+      MINER_PYLON_OPEN_ACCESS_TOKEN: "${MINER_PYLON_OPEN_ACCESS_TOKEN:?}"
+      MINER_TLS_CA_FILE: /tls/ca.pem
+      MINER_TLS_CERT_FILE: /tls/server.pem
+      MINER_TLS_KEY_FILE: /tls/server-key.pem
+      MINER_JOURNAL_PATH: /var/lib/validity-miner/requests.sqlite3
+      MINER_PORT: "8443"
+      MINER_SOURCE_VERSION: "${MINER_SOURCE_VERSION:-v1}"
+      MINER_REQUESTS_PER_MINUTE: "${MINER_REQUESTS_PER_MINUTE:-120}"
+    volumes:
+      - ${HOST_MINER_WALLET_DIR:?}:/wallets:ro
+      - ${HOST_MINER_TLS_DIR:?}:/tls:ro
+      - miner-state:/var/lib/validity-miner
+    depends_on: [pylon]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    pids_limit: 128
+    logging: *logging
+volumes:
+  miner-state:

@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Validity RN credential evaluation validator."
 requires-python = ">=3.14"
 dependencies = [
+    "validity-protocol",
     "attrs>=26.1.0", # previously this was required for Nexus (litestar needed it) #TODO: See if this is still the case
     "bittensor-nexus-library",
     "bittensor-wallet==4.0.1",
@@ -33,6 +34,7 @@ build-backend = "hatchling.build"
 exclude-newer = "11 days"
 
 [tool.uv.sources]
+validity-protocol = { path = "../protocol" }
 bittensor-nexus-library = { git = "https://github.com/bittensor-church/bittensor-nexus-library.git" }
 
 [dependency-groups]
@@ -64,7 +66,7 @@ filterwarnings = [
 [tool.basedpyright]
 pythonVersion = "3.14"
 typeCheckingMode = "strict"
-include = ["src", "tests"]
+include = ["src", "tests", "../protocol/src"]
 verboseOutput = true
 useLibraryCodeForTypes = true
 reportMissingTypeStubs = "warning"

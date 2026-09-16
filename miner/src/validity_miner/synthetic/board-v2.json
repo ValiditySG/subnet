@@ -1,0 +1,34 @@
+{
+  "source_version": "fixture-board-v2",
+  "profession": "RN",
+  "unavailable_licenses": [
+    "TEST-1005"
+  ],
+  "records": [
+    {
+      "record_id": "fixture-record-1",
+      "license_number": "TEST-1001",
+      "status": "suspended"
+    },
+    {
+      "record_id": "fixture-record-2",
+      "license_number": "TEST-1002",
+      "status": "active"
+    },
+    {
+      "record_id": "fixture-record-3",
+      "license_number": "TEST-1003",
+      "status": "active"
+    },
+    {
+      "record_id": "fixture-record-4",
+      "license_number": "TEST-1003",
+      "status": "suspended"
+    },
+    {
+      "record_id": "fixture-record-5",
+      "license_number": "TEST-1004",
+      "status": "active"
+    }
+  ]
+}

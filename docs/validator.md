@@ -12,16 +12,18 @@ bash installer/install.sh
 
 This creates `envs/deployed/.env` with mode `0600` and distinct random chain-sidecar tokens. It preserves an existing file and starts no services. Fill in:
 
-| Setting | Value |
-| --- | --- |
-| `VALIDATOR_IMAGE` | Published validator image with `@sha256:<digest>` |
-| `VALIDATOR_NETUID` | Actual registered testnet subnet |
-| `VALIDATOR_TEMPO` | Actual subnet tempo; do not copy an assumed development value |
-| `VALIDATOR_WALLET_NAME`, `VALIDATOR_HOTKEY_NAME` | This operator's registered wallet |
-| `HOST_WALLET_DIR` | Absolute wallet directory with the signing hotkey and public coldkey only |
-| `HOST_TLS_DIR` | Absolute directory containing `ca.pem`, `client.pem`, `client-key.pem` |
-| `HIPPIUS_BUCKET` | `validity-testnet` |
-| `HIPPIUS_ACCESS_KEY_ID`, `HIPPIUS_SECRET_ACCESS_KEY` | This operator's dedicated ACL token pair |
+
+| Setting                                              | Value                                                                     |
+| ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| `VALIDATOR_IMAGE`                                    | Published validator image with `@sha256:<digest>`                         |
+| `VALIDATOR_NETUID`                                   | Actual registered testnet subnet                                          |
+| `VALIDATOR_TEMPO`                                    | Actual subnet tempo; do not copy an assumed development value             |
+| `VALIDATOR_WALLET_NAME`, `VALIDATOR_HOTKEY_NAME`     | This operator's registered wallet                                         |
+| `HOST_WALLET_DIR`                                    | Absolute wallet directory with the signing hotkey and public coldkey only |
+| `HOST_TLS_DIR`                                       | Absolute directory containing `ca.pem`, `client.pem`, `client-key.pem`    |
+| `HIPPIUS_BUCKET`                                     | `validity-testnet`                                                        |
+| `HIPPIUS_ACCESS_KEY_ID`, `HIPPIUS_SECRET_ACCESS_KEY` | This operator's dedicated ACL token pair                                  |
+
 
 Service tokens live only in `.env`. Wallet and TLS private keys remain protected files mounted read-only; never include a coldkey private key in the deployment. Give container UID/GID `10001:10001` read access to only the required files. Do not make private files world-readable. Do not reuse previous development wallets or recovery databases.
 

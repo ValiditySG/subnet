@@ -9,11 +9,14 @@ permissions:
   contents: read
 
 jobs:
-  validator:
+  python:
+    strategy:
+      matrix:
+        project: [validator, miner]
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: validator
+        working-directory: ${{ matrix.project }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
@@ -21,7 +24,7 @@ jobs:
           version: "0.11.0"
           python-version: "3.14"
       - run: uv sync --frozen
-      - run: uv run --frozen ruff check
-      - run: uv run --frozen ruff format --check
+      - run: uv run --frozen ruff check . ../protocol/src
+      - run: uv run --frozen ruff format --check . ../protocol/src
       - run: uv run --frozen basedpyright
       - run: uv run --frozen pytest -q --tb=line -r f

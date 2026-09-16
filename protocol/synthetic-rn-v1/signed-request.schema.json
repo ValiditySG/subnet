@@ -6,7 +6,7 @@
     },
     "CredentialRequest": {
       "additionalProperties": false,
-      "description": "One local license lookup with an absolute UTC deadline.",
+      "description": "One synthetic license lookup with an absolute UTC deadline.",
       "properties": {
         "protocol_version": {
           "const": "validity.synthetic-rn.v1",
