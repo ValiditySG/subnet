@@ -35,6 +35,3 @@ class Settings(WalletSettings):
     total_processing_timeout: timedelta = Field(default=timedelta(seconds=30), gt=timedelta(0), le=timedelta(minutes=2))
     max_score_age: timedelta = Field(default=timedelta(minutes=30), gt=timedelta(0))
     tempo: int = Field(ge=20)
-    tls_ca_file: Path
-    tls_cert_file: Path
-    tls_key_file: Path

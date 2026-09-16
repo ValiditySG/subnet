@@ -15,7 +15,7 @@ automatically. Keep wallet names, the operator roster and registration status ou
 templates. Never reuse prior development journals/wallets.
 The target Hippius bucket is validity-testnet. Every operator runs independently with its own hotkey,
 ACL token and private recovery journal. Secrets belong in ignored mode-0600 .env files; cryptographic
-wallet/TLS key files are protected read-only mounts. Never print secrets, resolved compose environments,
+wallet key files are protected read-only mounts. Never print secrets, resolved compose environments,
 wallet seeds, private key files or signed S3 URLs.
 
 Weights go to chain; signed raw scores go directly to real Hippius. Object layout is
@@ -52,8 +52,12 @@ Use the installed Nexus actor runtime and Pylon chain sidecar. Before validator 
 validator/.venv/lib/python3.14/site-packages/nexus/docs/nexus.md and discover the public nexus.v1 APIs.
 Import only versioned public runtime modules. Do not add the Bittensor SDK to the validator or create
 background work outside actor ownership. Reuse built-in components and public extension points.
-CredentialHTTPS extends the public communicator: synchronous mTLS plus hotkey signatures, bounded
+CredentialHTTP extends the public communicator: synchronous HTTP plus hotkey signatures, bounded
 responses, no redirects/proxy discovery, registered public IP endpoints, no public callback listener.
+The user requires plain HTTP only between miners and validators, with hotkey-based participant
+authentication. Do not introduce TLS, HTTPS, certificates or TLS key mounts for this connection.
+Signatures and admission/replay checks remain mandatory. Payloads are unencrypted and strictly synthetic;
+real credential data requires a separate confidentiality design. The miner's default HTTP port is 8080.
 One request is in flight; durable assignments recover after restart. Weight and report clocks use separate
 contexts. Do not replace durable state with process memory. One journal lock prevents duplicate processes
 on a host; operators must also ensure only one active host uses their hotkey.
@@ -66,6 +70,6 @@ and a heartbeat healthcheck, no external telemetry forwarding. Trace export rema
 
 Read knowledge/guidelines.coding-and-qa.md. Use Python 3.14, strict basedpyright and no weakened rules.
 Run in order: ruff check --fix; ruff format; basedpyright; pytest -q --tb=line -r f.
-Exercise security boundaries, durable retries, chain identity gates and the real TLS stack. Keep docs,
+Exercise security boundaries, durable retries, chain identity gates and real signed HTTP exchanges. Keep docs,
 schemas, examples and tests aligned. Build and smoke-test the container before describing it as usable.
-Live chain/Hippius checks require the actual netuid, registered wallets, TLS material and authorized tokens.
+Live chain/Hippius checks require the actual netuid, registered wallets, public miner endpoints and authorized tokens.

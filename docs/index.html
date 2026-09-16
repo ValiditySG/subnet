@@ -100,7 +100,7 @@
         <h2 id="guides-title">Guides</h2>
         <ul>
           <li><a href="validator.md">Validator guide</a> — setup, configuration, persistence, and quality checks.</li>
-          <li><a href="miner.md">Miner guide</a> — the signed RN exchange, TLS, and source evidence.</li>
+          <li><a href="miner.md">Miner guide</a> — signed HTTP requests, hotkey authentication, and source evidence.</li>
           <li><a href="../subnet_design.md">Subnet design</a> — current scope and implementation sequence.</li>
           <li><a href="../protocol/synthetic-rn-v1/README.md">Synthetic RN protocol</a> — request, response, and evidence semantics.</li>
         </ul>
@@ -111,6 +111,10 @@
           The synthetic testnet validator evaluates fictional RN cases and preserves completed
           results across restarts, scores miner responses, and submits chain weights.
           Real-source coverage and agency workflows follow.
+        </p>
+        <p>
+          Miners and validators communicate over plain HTTP with hotkey-signed
+          requests and responses. This connection uses no TLS, HTTPS, or certificates.
         </p>
         <a href="../subnet_design.md">Read the subnet design</a>
       </section>

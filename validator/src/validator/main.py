@@ -27,7 +27,7 @@ from sentry_sdk.integrations.threading import ThreadingIntegration
 from validator.config import Settings
 from validator.credentials.evaluation import EvaluationLedger
 from validator.credentials.pipeline import EvaluationLoop, ObserveCredential
-from validator.credentials.transport import CredentialHTTPS
+from validator.credentials.transport import CredentialHTTP
 from validator.logging_config import LoggingSettings, configure_logging
 from validator.operator import check_env_file, exclusive_state
 from validator.otel import OtelSettings, setup_otel
@@ -63,7 +63,7 @@ class Validator(NexusValidator):
             tempo=Tempo(settings.tempo),
         )
         setter = WeightSetterNode("credential-weight-setter", weighing_func=evaluation.weigh)
-        communicator = CredentialHTTPS(settings)
+        communicator = CredentialHTTP(settings)
         observe = ObserveCredential(ledger)
         errors = ErrorLoggerNode("credential-errors")
         self.connect(self.subnet_clock.source, evaluation.tick)

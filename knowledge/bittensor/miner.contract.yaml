@@ -27,6 +27,8 @@ communication:
   patterns:
     http_api:
       recommended: true
+      protocol: "plain HTTP only; no TLS, HTTPS or certificates"
+      authentication: "SR25519 hotkey-signed requests and responses"
       discovery: axon_info
     
     orchestrator_socket:

@@ -14,7 +14,7 @@ The data is fictional and uses `ZZ-TEST`, `TEST-*` license identifiers, and `sco
 
 1. A validator reads registration and public miner endpoints through its chain sidecar.
 2. It persists a balanced round and each assignment before dispatch.
-3. It sends a hotkey-signed request to the miner's HTTPS endpoint with mutual TLS.
+3. It sends a hotkey-signed request to the miner's plain HTTP endpoint. The miner authenticates the validator's signature and subnet admission. This connection uses no TLS, HTTPS, or certificates; synthetic payloads travel unencrypted.
 4. It verifies the miner signature, exact request binding, deadline and independently reviewed expected result.
 5. It persists the score and prepares weights only from a complete current round.
 6. The chain sidecar submits weights. A queued acknowledgement is distinct from independent on-chain confirmation.
@@ -38,8 +38,8 @@ The pilot reader uses an operator-maintained validator hotkey allowlist. It pres
 
 ## Deployment gates
 
-The deployment is testnet-only, uses the verified testnet genesis, and defaults to netuid `568`. Operators must still configure the actual subnet tempo. Each operator starts with a fresh state volume, registered hotkey and trusted TLS material; validators also need a validator permit. Participant hotkeys must be registered before starting the evaluation loop. No subnet registration, stake transfer, hyperparameter mutation or bucket creation occurs automatically.
+The deployment is testnet-only, uses the verified testnet genesis, and defaults to netuid `568`. Operators must still configure the actual subnet tempo. Each operator starts with a fresh state volume and registered hotkey; validators also need a validator permit. Miner communication uses signed HTTP without certificates. Participant hotkeys must be registered before starting the evaluation loop. No subnet registration, stake transfer, hyperparameter mutation or bucket creation occurs automatically.
 
-Completion on testnet requires a full evaluation round, independently confirmed weight rows, verified Hippius readback from all expected validators, and a restart/outage recovery exercise. The runnable synthetic reference miner in `miner/` implements the signed HTTPS exchange using the shared protocol package. Its deployment and admission requirements are in `docs/miner.md`.
+Completion on testnet requires a full evaluation round, independently confirmed weight rows, verified Hippius readback from all expected validators, and a restart/outage recovery exercise. The runnable synthetic reference miner in `miner/` implements the signed HTTP exchange using the shared protocol package. Its deployment and admission requirements are in `docs/miner.md`.
 
 See [validator operations](docs/validator.md), [miner contract](docs/miner.md), and [score reporting](docs/score-reporting.md).

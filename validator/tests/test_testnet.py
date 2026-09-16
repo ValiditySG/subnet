@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import ssl
-import subprocess
 from datetime import UTC, datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from ipaddress import ip_address
@@ -65,7 +63,7 @@ def neuron(address: str, protocol: int = 4) -> Neuron:
             "coldkey": MINER.ss58_address,
             "hotkey": MINER.ss58_address,
             "active": True,
-            "axon_info": {"ip": address, "port": 443, "protocol": protocol},
+            "axon_info": {"ip": address, "port": 8080, "protocol": protocol},
             "stake": 1,
             "rank": 0,
             "emission": 0,
@@ -88,14 +86,14 @@ def neuron(address: str, protocol: int = 4) -> Neuron:
 def test_discovery_and_transport_reject_internal_addresses(address: str) -> None:
     candidate = neuron(address)
     assert not public_http_neurons([candidate])
-    with pytest.raises(ValueError, match="public HTTPS"):
+    with pytest.raises(ValueError, match="public HTTP"):
         target_url(candidate)
 
 
-def test_public_endpoint_requires_https_without_redirects_or_proxy() -> None:
+def test_public_endpoint_requires_http_without_redirects_or_proxy() -> None:
     candidate = neuron("8.8.8.8")
     assert public_http_neurons([candidate]) == [candidate]
-    assert target_url(candidate) == "https://8.8.8.8:443/v1/evaluate"
+    assert target_url(candidate) == "http://8.8.8.8:8080/v1/evaluate"
     with pytest.raises(ValueError):
         target_url(neuron("8.8.8.8", 0))
 
@@ -136,7 +134,7 @@ def test_untrusted_responses_fail_closed(kind: str) -> None:
 
     with httpx.Client(transport=httpx.MockTransport(respond)) as client:
         with pytest.raises((ValueError, httpx.HTTPError)):
-            exchange(client, "https://8.8.8.8/v1/evaluate", request)
+            exchange(client, "http://8.8.8.8/v1/evaluate", request)
     assert len(calls) == 1
 
 
@@ -145,11 +143,10 @@ def test_deadline_is_checked_before_network_access() -> None:
     task = signed.task.model_copy(update={"request": make_request()})
     signed = SignedRequest.sign(task, VALIDATOR)
     with httpx.Client() as client, pytest.raises(httpx.TimeoutException):
-        exchange(client, "https://8.8.8.8/v1/evaluate", signed)
+        exchange(client, "http://8.8.8.8/v1/evaluate", signed)
 
 
 def test_operator_config_defaults_to_testnet_568_and_rejects_other_networks(
-    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("VALIDATOR_NETUID", raising=False)
@@ -160,9 +157,6 @@ def test_operator_config_defaults_to_testnet_568_and_rejects_other_networks(
         "netuid": 123,
         "tempo": 360,
         "chain_genesis": GENESIS,
-        "tls_ca_file": tmp_path / "ca",
-        "tls_cert_file": tmp_path / "cert",
-        "tls_key_file": tmp_path / "key",
     }
     assert Settings.model_validate(config).mode == "synthetic"
     for change in (
@@ -225,37 +219,18 @@ def test_env_permissions_and_state_lock(tmp_path: Path) -> None:
         pass
 
 
-def test_real_https_requires_client_certificate_and_accepts_signed_result(tmp_path: Path) -> None:
-    """Exercise the actual SSL stack; all key material is ephemeral test data."""
-    cert, key = tmp_path / "cert.pem", tmp_path / "key.pem"
-    subprocess.run(
-        [
-            "openssl",
-            "req",
-            "-x509",
-            "-newkey",
-            "rsa:2048",
-            "-nodes",
-            "-days",
-            "1",
-            "-keyout",
-            str(key),
-            "-out",
-            str(cert),
-            "-subj",
-            "/CN=localhost",
-            "-addext",
-            "subjectAltName=IP:127.0.0.1",
-        ],
-        check=True,
-        capture_output=True,
-    )
+@pytest.mark.parametrize("tamper_response", [False, True])
+def test_real_http_verifies_signed_results_without_certificates(tamper_response: bool) -> None:
+    """Exercise actual HTTP sockets and enforce signatures across the exchange."""
 
     class Handler(BaseHTTPRequestHandler):
         def do_POST(self) -> None:
             signed = SignedRequest.model_validate_json(self.rfile.read(int(self.headers["content-length"])))
             signed.verify()
-            body = answer(signed).model_dump_json().encode()
+            response = answer(signed)
+            if tamper_response:
+                response = response.model_copy(update={"signature": "0" * 128})
+            body = response.model_dump_json().encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -265,23 +240,18 @@ def test_real_https_requires_client_certificate_and_accepts_signed_result(tmp_pa
         def log_message(self, format: str, *args: object) -> None:
             pass
 
-    server_tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    server_tls.load_cert_chain(cert, key)
-    server_tls.load_verify_locations(cert)
-    server_tls.verify_mode = ssl.CERT_REQUIRED
     with ThreadingHTTPServer((str(ip_address("127.0.0.1")), 0), Handler) as server:
-        server.socket = server_tls.wrap_socket(server.socket, server_side=True)
         thread = Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:
-            client_tls = ssl.create_default_context(cafile=str(cert))
-            url = f"https://127.0.0.1:{server.server_port}/v1/evaluate"
-            with httpx.Client(verify=client_tls, trust_env=False) as client, pytest.raises(httpx.HTTPError):
-                exchange(client, url, assignment())
-            client_tls.load_cert_chain(cert, key)
-            with httpx.Client(verify=client_tls, trust_env=False) as client:
-                request = assignment()
-                assert exchange(client, url, request).task_id == request.task.request.task_id
+            url = f"http://127.0.0.1:{server.server_port}/v1/evaluate"
+            with httpx.Client(trust_env=False, follow_redirects=False) as client:
+                if tamper_response:
+                    with pytest.raises(ValueError, match="signature"):
+                        exchange(client, url, assignment())
+                else:
+                    request = assignment()
+                    assert exchange(client, url, request).task_id == request.task.request.task_id
         finally:
             server.shutdown()
             thread.join(timeout=5)

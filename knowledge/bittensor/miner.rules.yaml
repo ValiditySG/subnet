@@ -20,7 +20,10 @@ communication:
     - synapse
   
   recommended:
-    protocol: http_rest
+    protocol: plain_http_rest
+    tls: false
+    https: false
+    authentication: "SR25519 hotkey-signed requests and responses"
     discovery: axon
     axon_points_at_one_of:
       - miner

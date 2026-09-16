@@ -4,9 +4,9 @@
 
 Both runnable roles use the Python models in [`validity_protocol`](../src/validity_protocol). See the [miner guide](../../docs/miner.md) for the reference server and deployment instructions.
 
-## HTTPS exchange
+## Signed HTTP exchange
 
-The miner registers its public IP/port with axon protocol `4` and accepts `POST /v1/evaluate` over mutual TLS. Its server certificate must include that IP in its subject alternative names. The validator supplies a trusted client certificate. Both participants also authenticate messages using their registered SR25519 hotkeys.
+The miner registers its public IP/port with axon protocol `4` and accepts `POST http://<registered-ip>:<port>/v1/evaluate` over **plain HTTP only**. The miner's default port is `8080`. This connection uses no TLS, HTTPS, or certificates. Both participants authenticate messages using their registered SR25519 hotkeys; miners also check current validator admission. Signatures protect message authenticity and integrity, not confidentiality: the fictional RN payloads travel unencrypted.
 
 The HTTP request is `SignedRequest` from [signed-request.schema.json](signed-request.schema.json):
 
@@ -16,7 +16,7 @@ The HTTP request is `SignedRequest` from [signed-request.schema.json](signed-req
 
 `request` follows [request.schema.json](request.schema.json). The deployment defaults are `network=test`, `netuid=568`. Signed messages always include the chain genesis and netuid explicitly; readers never infer missing signed fields from deployment defaults. Canonical bytes are UTF-8 JSON with recursively sorted keys, compact separators, ASCII escaping, and all schema default fields included. Timestamps use UTC and the serializer's `Z` representation. Sign `b"validity.rn-request.v1\n" + canonical(task)`; encode the 64-byte SR25519 signature as lowercase hexadecimal.
 
-The miner validates TLS, signature, chain/subnet, expected miner hotkey, registered validator admission and the task's absolute deadline before processing. Reject reused task IDs or return the original response idempotently. Never accept an old response as a new assignment.
+The miner validates the signature, chain/subnet, expected miner hotkey, registered validator admission and the task's absolute deadline before processing. Reject reused task IDs or return the original response idempotently. Never accept an old response as a new assignment.
 
 Return HTTP 200 with [signed-response.schema.json](signed-response.schema.json):
 

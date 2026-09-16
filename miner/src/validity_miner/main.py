@@ -1,8 +1,7 @@
-"""Run one independently operated, mutually authenticated synthetic RN miner."""
+"""Run one synthetic RN miner with HTTP and hotkey-authenticated requests."""
 
 import fcntl
 import os
-import ssl
 from functools import partial
 from pathlib import Path
 
@@ -18,17 +17,13 @@ from validity_miner.service import MinerService, chain_admission
 
 
 def server_config(app: MinerApp, settings: Settings) -> uvicorn.Config:
-    """Always require trusted client certificates; never honor forwarded scheme headers."""
+    """Serve signed HTTP without certificates; never honor forwarded scheme headers."""
     return uvicorn.Config(
         app,
         host=settings.bind_host,
         port=settings.port,
         lifespan="off",
         ws="none",
-        ssl_certfile=str(settings.tls_cert_file),
-        ssl_keyfile=str(settings.tls_key_file),
-        ssl_ca_certs=str(settings.tls_ca_file),
-        ssl_cert_reqs=ssl.CERT_REQUIRED,
         proxy_headers=False,
         access_log=False,
         limit_concurrency=32,

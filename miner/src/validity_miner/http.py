@@ -1,4 +1,4 @@
-"""Bounded HTTPS request handling; TLS client authentication is enforced by the server."""
+"""Bounded HTTP request handling; the service verifies hotkey signatures and admission."""
 
 import asyncio
 import json
@@ -37,9 +37,6 @@ class MinerApp:
 
     async def __call__(self, scope: Scope, receive: ASGIReceiveCallable, send: ASGISendCallable) -> None:
         if scope["type"] != "http":
-            return
-        if scope["scheme"] != "https":
-            await respond(send, 403, b'{"error":"mutual TLS is required"}')
             return
         if scope["path"] == "/health" and scope["method"] == "GET":
             await respond(send, 200, b'{"status":"ok","scope":"synthetic-rn"}')

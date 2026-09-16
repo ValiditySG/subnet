@@ -20,12 +20,11 @@ This creates `envs/deployed/.env` with mode `0600` and distinct random chain-sid
 | `VALIDATOR_TEMPO`                                    | Actual subnet tempo; do not copy an assumed development value             |
 | `VALIDATOR_WALLET_NAME`, `VALIDATOR_HOTKEY_NAME`     | This operator's registered wallet                                         |
 | `HOST_WALLET_DIR`                                    | Absolute wallet directory with the signing hotkey and public coldkey only |
-| `HOST_TLS_DIR`                                       | Absolute directory containing `ca.pem`, `client.pem`, `client-key.pem`    |
 | `HIPPIUS_BUCKET`                                     | `validity-testnet`                                                        |
 | `HIPPIUS_ACCESS_KEY_ID`, `HIPPIUS_SECRET_ACCESS_KEY` | This operator's dedicated ACL token pair                                  |
 
 
-Service tokens live only in `.env`. Wallet and TLS private keys remain protected files mounted read-only; never include a coldkey private key in the deployment. Give container UID/GID `10001:10001` read access to only the required files. Do not make private files world-readable. Do not reuse previous development wallets or recovery databases.
+Service tokens live only in `.env`. Wallet private keys remain protected files mounted read-only; never include a coldkey private key in the deployment. Give container UID/GID `10001:10001` read access to only the required files. Do not make private files world-readable. Do not reuse previous development wallets or recovery databases.
 
 The deployment fixes the chain endpoint to Bittensor testnet. The genesis hash was read directly from that endpoint on 2026-09-16:
 
@@ -33,11 +32,13 @@ The deployment fixes the chain endpoint to Bittensor testnet. The genesis hash w
 
 The runtime rejects other configured chain IDs. Chain data is trusted through the operator's sidecar; the preflight checks its subnet identity and validator registration/permit. See the [official network reference](https://preview.bittensor.com/docs/concepts/network) for the public endpoint.
 
-## TLS and miner compatibility
+## Miner transport and authentication
 
-Validators require a trusted CA, a client certificate and matching private key. Miner servers must require client certificates, present certificates with the registered IP in their subject alternative names, and implement the [signed RN exchange](../protocol/synthetic-rn-v1/README.md). Exchange signatures bind both hotkeys, the chain, subnet and task. No insecure HTTP fallback, redirects or public validator callbacks are supported.
+Validators contact registered public miner endpoints over **plain HTTP only, with no TLS, HTTPS, or certificates**. The endpoint is `POST http://<registered-ip>:<port>/v1/evaluate`; the miner's default port is `8080`. Redirects, proxy discovery and private-address endpoints are disabled.
 
-TLS provisioning is explicit: do not generate a shared private key or distribute a CA private key to operators. The initial pilot may use an operator-managed CA with independently issued certificates. Keep its signing key offline. This is an admission mechanism for the pilot, not permissionless certificate discovery.
+The [signed RN exchange](../protocol/synthetic-rn-v1/README.md) authenticates both participants with their existing hotkeys. Each signature binds both hotkeys, the chain, subnet and task. Miners check the validator's signature, configured hotkey admission, registration and validator permit before evaluating. Validators verify the signed miner response. No public validator callback listener is needed.
+
+Hotkey signatures authenticate messages and detect tampering; they do not encrypt traffic. This transport is for the current fictional RN evaluations. Real credential data requires a separate confidentiality design.
 
 ## Start and update
 
@@ -49,7 +50,7 @@ bash installer/update_compose.sh
 
 The script checks permissions and an immutable image digest, validates Compose without printing secrets, pulls pinned images, starts the private chain sidecar, runs read-only preflight, and starts the validator only if preflight passes. If the sidecar is still syncing, retry after it is ready. There are no unattended update jobs.
 
-Preflight checks settings, packaged synthetic data, wallet access, TLS files, sidecar subnet identity, registration, permit and Hippius read access. It does not prove miner reachability, PUT permission, actual chain-weight confirmation or future availability. Verify subnet tempo and weight constraints before starting; the deployment does not modify them.
+Preflight checks settings, packaged synthetic data, wallet access, sidecar subnet identity, registration, permit and Hippius read access. It does not prove miner reachability, PUT permission, actual chain-weight confirmation or future availability. Verify subnet tempo and weight constraints before starting; the deployment does not modify them.
 
 ```sh
 cd envs/deployed
@@ -90,4 +91,4 @@ uv run --frozen basedpyright
 uv run --frozen pytest -q --tb=line -r f
 ```
 
-Tests exercise signatures, replay and identity binding, mutual TLS, public-address filtering, upload isolation and durable recovery. They use isolated test doubles; live Hippius acceptance must use real storage.
+Tests exercise signed HTTP exchanges, tampering rejection, replay and identity binding, public-address filtering, upload isolation and durable recovery. They use isolated test doubles; live Hippius acceptance must use real storage.

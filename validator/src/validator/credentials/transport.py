@@ -1,8 +1,7 @@
-"""Signed RN exchanges over mutually authenticated HTTPS, inside the actor runtime."""
+"""Hotkey-authenticated synthetic RN exchanges over HTTP, inside the actor runtime."""
 
 from __future__ import annotations
 
-import ssl
 from datetime import UTC, datetime
 from time import perf_counter
 from typing import override
@@ -58,8 +57,8 @@ def target_url(neuron: Neuron) -> str:
         or axon.ip.is_multicast
         or not 1 <= axon.port <= 65535
     ):
-        raise ValueError("Miner must register a public HTTPS endpoint")
-    return f"https://{format_host_for_url(axon.ip)}:{axon.port}/v1/evaluate"
+        raise ValueError("Miner must register a public HTTP endpoint")
+    return f"http://{format_host_for_url(axon.ip)}:{axon.port}/v1/evaluate"
 
 
 def exchange(client: httpx.Client, url: str, signed: SignedRequest) -> CredentialResponse:
@@ -93,22 +92,23 @@ def exchange(client: httpx.Client, url: str, signed: SignedRequest) -> Credentia
     return SignedResponse.model_validate_json(bytes(data)).verify(signed)
 
 
-class CredentialHTTPS(ExecutorCommunicator[CredentialRequest, CredentialResponse], ActorBuilder):
+class CredentialHTTP(ExecutorCommunicator[CredentialRequest, CredentialResponse], ActorBuilder):
     """Use the public communicator extension point; no public callback listener is needed."""
 
     def __init__(self, settings: Settings) -> None:
+        # Preserve the persisted actor identity across the transport change.
         super().__init__("credential-https", CredentialRequest, CredentialResponse)
         self.settings = settings
 
     @override
     def build_actor(self, *, pipe_to_bus: PipeToBus, context_store: ContextStore) -> Actor:
-        return CredentialHTTPSActor(self, pipe_to_bus, context_store)
+        return CredentialHTTPActor(self, pipe_to_bus, context_store)
 
 
-class CredentialHTTPSActor(CommunicatorActor[CredentialRequest, CredentialResponse]):
+class CredentialHTTPActor(CommunicatorActor[CredentialRequest, CredentialResponse]):
     """Own network clients and key material for the lifetime of one runtime actor."""
 
-    def __init__(self, node: CredentialHTTPS, pipe: PipeToBus, store: ContextStore) -> None:
+    def __init__(self, node: CredentialHTTP, pipe: PipeToBus, store: ContextStore) -> None:
         super().__init__(spec=node, pipe_to_bus=pipe, context_store=store)
         self.settings = node.settings
         self.client: httpx.Client | None = None
@@ -117,11 +117,8 @@ class CredentialHTTPSActor(CommunicatorActor[CredentialRequest, CredentialRespon
     @override
     def on_start(self) -> None:
         s = self.settings
-        tls = ssl.create_default_context(cafile=str(s.tls_ca_file))
-        tls.minimum_version = ssl.TLSVersion.TLSv1_2
-        tls.load_cert_chain(s.tls_cert_file, s.tls_key_file)
         self.key = Wallet(path=str(s.wallet_path), name=s.wallet_name, hotkey=s.hotkey_name).get_hotkey()
-        self.client = httpx.Client(verify=tls, trust_env=False, follow_redirects=False)
+        self.client = httpx.Client(trust_env=False, follow_redirects=False)
 
     @override
     def on_stop(self) -> None:
@@ -133,7 +130,7 @@ class CredentialHTTPSActor(CommunicatorActor[CredentialRequest, CredentialRespon
         started = perf_counter()
         try:
             if self.client is None or self.key is None:
-                raise RuntimeError("HTTPS actor has not started")
+                raise RuntimeError("HTTP actor has not started")
             task = TaskBinding(
                 chain_genesis=self.settings.chain_genesis,
                 netuid=self.settings.netuid,
@@ -150,7 +147,7 @@ class CredentialHTTPSActor(CommunicatorActor[CredentialRequest, CredentialRespon
             return self._executor_error_event(ctx.id, RemoteResponseTimeoutException("Miner deadline exceeded"))
         except httpx.HTTPError:
             events.add(1, {"result": "transport_error"})
-            return self._executor_error_event(ctx.id, RemoteRequestFailedException("Miner HTTPS request failed"))
+            return self._executor_error_event(ctx.id, RemoteRequestFailedException("Miner HTTP request failed"))
         except ValueError:
             events.add(1, {"result": "invalid_response"})
             return self._executor_error_event(ctx.id, ResponseInvalidException("Invalid signed miner exchange"))

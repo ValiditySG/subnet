@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Service credentials live in a private .env; key files are read-only mounts."""
+    """Service credentials live in a private .env; wallet keys are read-only mounts."""
 
     model_config = SettingsConfigDict(env_prefix="MINER_", extra="ignore", hide_input_in_errors=True)
     network: Literal["test"] = "test"
@@ -21,11 +21,8 @@ class Settings(BaseSettings):
     allowed_validators: frozenset[str] = Field(min_length=1)
     pylon_address: str
     pylon_open_access_token: SecretStr = Field(min_length=1)
-    tls_ca_file: Path
-    tls_cert_file: Path
-    tls_key_file: Path
     bind_host: str = "0.0.0.0"
-    port: int = Field(default=8443, ge=1024, le=65535)
+    port: int = Field(default=8080, ge=1024, le=65535)
     source_version: Literal["v1", "v2"] = "v1"
     journal_path: Path = Path("/var/lib/validity-miner/requests.sqlite3")
     requests_per_minute: int = Field(default=120, ge=1, le=1000)

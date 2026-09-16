@@ -68,7 +68,7 @@ duration = meter.create_histogram("validity.credential.operation.duration", unit
 
 
 def public_http_neurons(neurons: Sequence[Neuron]) -> Sequence[Neuron]:
-    """Select public HTTP-protocol axons; HTTPS and signatures are enforced by transport."""
+    """Select public HTTP-protocol axons; hotkey signatures are enforced by transport."""
     return [
         neuron
         for neuron in neurons

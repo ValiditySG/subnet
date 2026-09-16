@@ -2,7 +2,7 @@
 
 The runnable reference miner is in [`miner/src/validity_miner/`](../miner/src/validity_miner). It receives a fictional RN query, resolves records from a packaged public board snapshot, and returns a signed finding with evidence. It does not read validator answer labels. This is a synthetic testnet implementation; real nursing-board adapters follow.
 
-Defaults are `network=test` and `netuid=568`. Start an instance only after its hotkey is registered and its TLS endpoint is configured.
+Defaults are `network=test`, `netuid=568` and HTTP port `8080`. Start an instance only after its hotkey is registered and its public endpoint is configured.
 
 ## Configure one operator
 
@@ -26,13 +26,12 @@ Fill in the private `.env` before starting:
 | `MINER_SOURCE_VERSION` | `v1` or `v2`, matching the pilot's agreed source rollout |
 | `MINER_IMAGE` | Released miner image with `@sha256:<digest>` for Compose |
 | `HOST_MINER_WALLET_DIR` | Absolute directory containing the miner hotkey and public coldkey only |
-| `HOST_MINER_TLS_DIR` | Absolute directory containing `ca.pem`, `server.pem`, `server-key.pem` |
 
-Keep tokens in `.env`; wallet and TLS private keys remain protected files. Give container UID/GID `10001:10001` read access to the required mounted files without making them world-readable. Keep the coldkey private key and CA signing key offline. Do not reuse retired development wallets or state.
+Keep tokens in `.env`; wallet private keys remain protected files. Give container UID/GID `10001:10001` read access to the required mounted files without making them world-readable. Keep the coldkey private key offline. Do not reuse retired development wallets or state.
 
 ## Run with Docker
 
-On the miner operator's host, after registration, TLS provisioning and configuration:
+On the miner operator's host, after registration and configuration:
 
 ```sh
 cd miner
@@ -43,7 +42,7 @@ docker compose ps
 docker compose logs --tail=100 miner
 ```
 
-Do not print the resolved Compose configuration: it contains secrets. The deployment publishes only the miner's TLS port (`8443` by default). Its chain sidecar has read access and no wallet or signing identity. The miner runs without root privileges on a read-only filesystem, with a private state volume and bounded logs. Admission fails closed until the sidecar is ready. Publishing a container port does not register the endpoint on chain.
+Do not print the resolved Compose configuration: it contains secrets. The deployment publishes only the miner's HTTP port (`8080` by default). Its chain sidecar has read access and no wallet or signing identity. The miner runs without root privileges on a read-only filesystem, with a private state volume and bounded logs. Admission fails closed until the sidecar is ready. Publishing a container port does not register the endpoint on chain.
 
 For a source build, run from the **repository root** so Docker can include the shared protocol package:
 
@@ -55,7 +54,7 @@ Publish a reviewed image and use its registry digest in the deployment configura
 
 ## Run from source
 
-Set `MINER_WALLET_PATH`, `MINER_TLS_CA_FILE`, `MINER_TLS_CERT_FILE`, `MINER_TLS_KEY_FILE` and `MINER_JOURNAL_PATH` to this host's private paths. Set `MINER_PYLON_ADDRESS` to a trusted, privately reachable testnet sidecar using the configured token. Then, from `miner/`:
+Set `MINER_WALLET_PATH` and `MINER_JOURNAL_PATH` to this host's private paths. Set `MINER_PYLON_ADDRESS` to a trusted, privately reachable testnet sidecar using the configured token. Then, from `miner/`:
 
 ```sh
 uv sync --frozen
@@ -66,11 +65,13 @@ Both start methods require an existing wallet. They do not create keys, spend to
 
 ## Serving requirements
 
-Register the miner hotkey on testnet subnet `568` and advertise a globally routable IP/port with HTTP axon protocol value `4`. Each active miner hotkey needs its own instance, signing key, endpoint and private state. Serve **HTTPS** at `POST /v1/evaluate`; do not redirect requests. The server certificate must be trusted by validators and include the registered IP as a subject alternative name. Require each validator's client certificate and verify its hotkey signature and current subnet admission.
+Register the miner hotkey on testnet subnet `568` and advertise a globally routable IP/port with HTTP axon protocol value `4`. Each active miner hotkey needs its own instance, signing key, endpoint and private state. Serve **HTTP** at `POST /v1/evaluate`; do not redirect requests.
 
-The request and response envelopes, signature bytes and replay checks are defined in the [synthetic RN protocol](../protocol/synthetic-rn-v1/README.md). Return a synchronous JSON response before the absolute deadline, with at most 64 KiB and no compression. Sign with the registered miner hotkey. Keep service tokens in a private `.env` and private wallet/TLS keys in protected files.
+Miner–validator communication uses **plain HTTP only, with no TLS, HTTPS, or certificates**. The miner authenticates signed requests with registered hotkeys and checks subnet admission before evaluation. Responses are signed with the miner hotkey. Traffic is unencrypted; this release exchanges fictional RN queries only.
 
-The reference service checks the validator allowlist, current subnet registration and validator permit on each authenticated request. It rejects signatures for another chain, subnet or miner. Deadlines must be within two minutes of issuance; future clock skew is limited to five seconds. It bounds requests and applies a configurable per-validator request quota. `/health` also requires a trusted client certificate. Keep operator clocks synchronized.
+The request and response envelopes, signature bytes and replay checks are defined in the [synthetic RN protocol](../protocol/synthetic-rn-v1/README.md). Return a synchronous JSON response before the absolute deadline, with at most 64 KiB and no compression. Sign with the registered miner hotkey. Keep service tokens in a private `.env` and private wallet keys in protected files.
+
+The reference service checks the validator allowlist, current subnet registration and validator permit on each authenticated request. It rejects signatures for another chain, subnet or miner. Deadlines must be within two minutes of issuance; future clock skew is limited to five seconds. It bounds requests and applies a configurable per-validator request quota. `/health` is available over HTTP without authentication and exposes only service status and the synthetic scope. Keep operator clocks synchronized.
 
 ## Recovery
 
@@ -88,10 +89,10 @@ These public cases test protocol conformance and operation. They are not a compe
 
 ## Code and checks
 
-- [`main.py`](../miner/src/validity_miner/main.py): CLI, wallet, exclusive state lock and mutual TLS server.
+- [`main.py`](../miner/src/validity_miner/main.py): CLI, wallet, exclusive state lock and HTTP server.
 - [`service.py`](../miner/src/validity_miner/service.py): signatures, admission, deadlines and response signing.
 - [`resolver.py`](../miner/src/validity_miner/resolver.py): synthetic board resolution.
 - [`journal.py`](../miner/src/validity_miner/journal.py): durable retries and quotas.
 - [`validity_protocol`](../protocol/src/validity_protocol): shared wire models used by both roles.
 
-From `miner/`, run `uv run --frozen ruff check --fix`, `uv run --frozen ruff format`, `uv run --frozen basedpyright`, then `uv run --frozen pytest -q --tb=line -r f`. Tests exercise source resolution against independent labels, signature/context rejection, concurrent retries, restart recovery, deadlines, quotas and the real mutual TLS server. Live testnet registration, endpoint discovery and admission still require the actual operator configuration.
+From `miner/`, run `uv run --frozen ruff check --fix`, `uv run --frozen ruff format`, `uv run --frozen basedpyright`, then `uv run --frozen pytest -q --tb=line -r f`. Tests exercise source resolution against independent labels, signature/context rejection, concurrent retries, restart recovery, deadlines, quotas and signed requests through the real HTTP server. Live testnet registration, endpoint discovery and admission still require the actual operator configuration.

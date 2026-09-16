@@ -43,4 +43,4 @@ For a trusted application backend:
 uv run --frozen python -m validator.reporting.reader --env-file ../envs/reader/.env
 ```
 
-The reader binds to loopback and exposes paginated `GET /v1/reports?epoch_start=...&limit=100`. POST is disabled. A public deployment needs an authenticated, rate-limited TLS reverse proxy. Each report remains attributable to its validator; a missing or invalid report is not a score of zero. The browser must never receive Hippius tokens.
+The reader binds to loopback and exposes paginated `GET /v1/reports?epoch_start=...&limit=100`. POST is disabled. Public browser access to this reader API needs an authenticated, rate-limited TLS reverse proxy. Each report remains attributable to its validator; a missing or invalid report is not a score of zero. The browser must never receive Hippius tokens.

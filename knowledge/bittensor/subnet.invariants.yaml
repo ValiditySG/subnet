@@ -43,10 +43,22 @@ miner_communication:
   dendrite_synapse:
     status: DEPRECATED
     rule: "NEVER use for new development"
-    replacement: "HTTP APIs with mTLS auth and encryption"
+    replacement: "Plain HTTP APIs with hotkey-signed requests and responses"
     realized_by: "nexus HTTP communicator"
     rationale:
       - obscures_actual_behavior
+
+  validity_transport:
+    protocol: "plain HTTP only"
+    endpoint: "POST http://<registered-ip>:<port>/v1/evaluate"
+    default_port: 8080
+    tls: false
+    https: false
+    certificates_required: false
+    authentication: "SR25519 hotkey signatures on requests and responses"
+    admission: "Verify validator hotkey admission, subnet registration and permit"
+    replay_protection: "Bind both hotkeys, chain, subnet, task and deadline; persist exact retries"
+    confidentiality: "Payloads travel unencrypted"
 
   discovery:
     method: "miners commit axon info to chain"

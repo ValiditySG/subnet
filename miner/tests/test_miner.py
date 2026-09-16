@@ -3,8 +3,6 @@
 import asyncio
 import json
 import socket
-import ssl
-import subprocess
 import time
 from collections.abc import Awaitable, Callable, MutableMapping
 from concurrent.futures import ThreadPoolExecutor
@@ -45,9 +43,6 @@ def settings_at(path: Path, version: Literal["v1", "v2"] = "v1") -> Settings:
         allowed_validators=frozenset([VALIDATOR.ss58_address]),
         pylon_address="http://private-sidecar:8000",
         pylon_open_access_token=SecretStr("test-token"),
-        tls_ca_file=path / "cert.pem",
-        tls_cert_file=path / "cert.pem",
-        tls_key_file=path / "key.pem",
         bind_host="127.0.0.1",
         journal_path=path / "requests.sqlite3",
         source_version=version,
@@ -169,7 +164,7 @@ def test_http_boundary_and_signed_response(tmp_path: Path) -> None:
     async def exercise() -> None:
         # Uvicorn models ASGI events with TypedDicts; httpx uses mutable mappings.
         transport = httpx.ASGITransport(app=cast(ASGIApplication, app))
-        async with httpx.AsyncClient(transport=transport, base_url="https://miner") as client:
+        async with httpx.AsyncClient(transport=transport, base_url="http://miner") as client:
             signed = request_for()
             response = await client.post("/v1/evaluate", content=signed.model_dump_json())
             assert response.status_code == 200
@@ -181,7 +176,7 @@ def test_http_boundary_and_signed_response(tmp_path: Path) -> None:
             assert (await client.post("/v1/evaluate", content=b"{}")).status_code == 400
             assert (await client.get("/v1/evaluate")).status_code == 405
             assert (await client.get("/health")).status_code == 200
-            assert (await client.get("http://miner/health")).status_code == 403
+            assert (await client.get("/unknown")).status_code == 404
 
     asyncio.run(exercise())
 
@@ -200,7 +195,7 @@ def test_chain_admission_uses_read_only_sidecar_and_fails_closed(
             "coldkey": key.ss58_address,
             "hotkey": key.ss58_address,
             "active": True,
-            "axon_info": {"ip": "8.8.8.8", "port": 8443, "protocol": 4},
+            "axon_info": {"ip": "8.8.8.8", "port": 8080, "protocol": 4},
             "stake": 1,
             "rank": 0,
             "emission": 0,
@@ -241,33 +236,12 @@ def test_chain_admission_uses_read_only_sidecar_and_fails_closed(
             chain_admission(settings, MINER.ss58_address, VALIDATOR.ss58_address)
 
 
-def test_real_mtls_server_rejects_missing_cert_and_serves_signed_result(tmp_path: Path) -> None:
+def test_real_http_authenticates_requests_without_certificates(tmp_path: Path) -> None:
     settings = settings_at(tmp_path)
-    subprocess.run(
-        [
-            "openssl",
-            "req",
-            "-x509",
-            "-newkey",
-            "rsa:2048",
-            "-nodes",
-            "-days",
-            "1",
-            "-keyout",
-            str(settings.tls_key_file),
-            "-out",
-            str(settings.tls_cert_file),
-            "-subj",
-            "/CN=localhost",
-            "-addext",
-            "subjectAltName=IP:127.0.0.1",
-        ],
-        check=True,
-        capture_output=True,
-    )
-    app = MinerApp(MinerService(settings, MINER, admitted))
+    admitted_hotkeys: list[str] = []
+    app = MinerApp(MinerService(settings, MINER, admitted_hotkeys.append))
     config = server_config(app, settings)
-    assert config.ssl_cert_reqs == ssl.CERT_REQUIRED and not config.proxy_headers
+    assert not config.is_ssl and not config.proxy_headers
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         listener.listen(32)
@@ -279,16 +253,20 @@ def test_real_mtls_server_rejects_missing_cert_and_serves_signed_result(tmp_path
             while not server.started and time.monotonic() < end:
                 time.sleep(0.01)
             assert server.started
-            url = f"https://127.0.0.1:{listener.getsockname()[1]}/v1/evaluate"
-            tls = ssl.create_default_context(cafile=str(settings.tls_ca_file))
-            with httpx.Client(verify=tls, trust_env=False) as client, pytest.raises(httpx.HTTPError):
-                client.post(url, content=request_for().model_dump_json())
-            tls.load_cert_chain(settings.tls_cert_file, settings.tls_key_file)
-            with httpx.Client(verify=tls, trust_env=False) as client:
+            url = f"http://127.0.0.1:{listener.getsockname()[1]}/v1/evaluate"
+            with httpx.Client(trust_env=False) as client:
+                assert client.get(url.replace("/v1/evaluate", "/health")).status_code == 200
+                assert client.post(url, content=b"{}").status_code == 400
+                forged = request_for().model_copy(update={"signature": "0" * 128})
+                assert client.post(url, content=forged.model_dump_json()).status_code == 400
+                wrong = SignedRequest.sign(request_for().task.model_copy(update={"netuid": 124}), VALIDATOR)
+                assert client.post(url, content=wrong.model_dump_json()).status_code == 403
+                assert admitted_hotkeys == []
                 signed = request_for()
                 result = client.post(url, content=signed.model_dump_json())
                 assert result.status_code == 200
                 assert SignedResponse.model_validate_json(result.content).verify(signed).checks[0].finding == "active"
+                assert admitted_hotkeys == [VALIDATOR.ss58_address]
         finally:
             server.should_exit = True
             thread.join(timeout=5)

@@ -10,9 +10,6 @@ x-validator-environment: &validator-environment
   VALIDATOR_WALLET_NAME: "${VALIDATOR_WALLET_NAME:?}"
   VALIDATOR_HOTKEY_NAME: "${VALIDATOR_HOTKEY_NAME:?}"
   VALIDATOR_LEDGER_PATH: /var/lib/validity/credentials.sqlite3
-  VALIDATOR_TLS_CA_FILE: /tls/ca.pem
-  VALIDATOR_TLS_CERT_FILE: /tls/client.pem
-  VALIDATOR_TLS_KEY_FILE: /tls/client-key.pem
   VALIDATOR_PYLON_SERVICE_ADDRESS: http://pylon:8000
   VALIDATOR_PYLON_OPEN_ACCESS_TOKEN: "${VALIDATOR_PYLON_OPEN_ACCESS_TOKEN:?}"
   VALIDATOR_PYLON_IDENTITY_NAME: validator
@@ -61,7 +58,6 @@ services:
     environment: *validator-environment
     volumes:
       - ${HOST_WALLET_DIR:?}:/wallets:ro
-      - ${HOST_TLS_DIR:?}:/tls:ro
       - validator-state:/var/lib/validity
     depends_on: [pylon]
     security_opt: [no-new-privileges:true]
@@ -83,7 +79,6 @@ services:
     environment: *validator-environment
     volumes:
       - ${HOST_WALLET_DIR:?}:/wallets:ro
-      - ${HOST_TLS_DIR:?}:/tls:ro
     entrypoint: [python, -m, validator.preflight]
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
