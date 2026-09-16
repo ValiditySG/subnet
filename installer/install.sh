@@ -1,94 +1,23 @@
 #!/usr/bin/env bash
-# Installer for the Validity validator.
-# Sets up the working directory, .env, and a cron job that keeps docker-compose.yml in sync.
-
+# Prepare private operator configuration from a reviewed checkout; never starts chain writes.
 set -euo pipefail
-
-# ENV_NAME is both the deploy-config branch suffix (deploy-config-<ENV_NAME>) and the
-# OpenTelemetry deployment.environment.name attribute written to .env below.
-ENV_NAME="${1:-production}"
-WORKING_DIRECTORY=${2:-~/validity-validator/}
-
-mkdir -p "${WORKING_DIRECTORY}"
-WORKING_DIRECTORY=$(realpath "${WORKING_DIRECTORY}")
-
-ENV_FILE="${WORKING_DIRECTORY}/.env"
-if [ ! -f "${ENV_FILE}" ]; then
-    echo "Creating .env file..."
-
-    read -r -p "Enter BITTENSOR_NETWORK [ws://127.0.0.1:9944]: " BITTENSOR_NETWORK </dev/tty
-    BITTENSOR_NETWORK=${BITTENSOR_NETWORK:-ws://127.0.0.1:9944}
-
-    read -r -p "Enter HOST_WALLET_DIR [~/.bittensor/wallets]: " HOST_WALLET_DIR </dev/tty
-    HOST_WALLET_DIR=${HOST_WALLET_DIR:-~/.bittensor/wallets}
-
-    read -r -p "Enter BITTENSOR_WALLET_NAME [validator]: " BITTENSOR_WALLET_NAME </dev/tty
-    BITTENSOR_WALLET_NAME=${BITTENSOR_WALLET_NAME:-validator}
-
-    read -r -p "Enter BITTENSOR_WALLET_HOTKEY_NAME [default]: " BITTENSOR_WALLET_HOTKEY_NAME </dev/tty
-    BITTENSOR_WALLET_HOTKEY_NAME=${BITTENSOR_WALLET_HOTKEY_NAME:-default}
-
-    VALIDATOR_PYLON_OPEN_ACCESS_TOKEN=$(openssl rand -hex 32)
-    PYLON_METRICS_TOKEN=$(openssl rand -hex 32)
-    PROMETHEUS_PROXY_SECRET_KEY=$(openssl rand -hex 32)
-    NETUID=2
-
-    read -r -p "Enter SENTRY_DSN (optional, press Enter to skip): " SENTRY_DSN </dev/tty
-    SENTRY_DSN=${SENTRY_DSN:-}
-
-    cat > "${ENV_FILE}" << EOL
-NETUID=${NETUID}
-BITTENSOR_NETWORK=${BITTENSOR_NETWORK}
-BITTENSOR_WALLET_NAME=${BITTENSOR_WALLET_NAME}
-BITTENSOR_WALLET_HOTKEY_NAME=${BITTENSOR_WALLET_HOTKEY_NAME}
-HOST_WALLET_DIR=${HOST_WALLET_DIR}
-ENVIRONMENT=${ENV_NAME}
-VALIDATOR_PYLON_OPEN_ACCESS_TOKEN=${VALIDATOR_PYLON_OPEN_ACCESS_TOKEN}
-PYLON_METRICS_TOKEN=${PYLON_METRICS_TOKEN}
-PROMETHEUS_PROXY_SECRET_KEY=${PROMETHEUS_PROXY_SECRET_KEY}
-SENTRY_DSN=${SENTRY_DSN}
-# Distributed traces upstream Alloy forwards to. Left empty because the `alloy` sidecar
-# ships disabled; required once it is enabled (Alloy crash-loops without them).
-TRACES_UPSTREAM_URL=
-TRACES_UPSTREAM_USER=
-TRACES_UPSTREAM_PASSWORD=
-EOL
-
-    echo ".env file created successfully."
+umask 077
+VALIDITY_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+VALIDITY_DEPLOY_DIR="${VALIDITY_ROOT}/envs/deployed"
+if [[ -e "${VALIDITY_DEPLOY_DIR}/.env" ]]; then
+    echo 'Existing .env preserved.'
+    exit 0
 fi
-
-if ! grep -q '^ENVIRONMENT=' "${ENV_FILE}"; then
-    echo "ENVIRONMENT=${ENV_NAME}" >> "${ENV_FILE}"
-fi
-
-GITHUB_URL="https://raw.githubusercontent.com/ValiditySG/subnet/refs/heads"
-UPDATE_SCRIPT="${WORKING_DIRECTORY}/update_compose.sh"
-UPDATE_URL="${GITHUB_URL}/deploy-config-${ENV_NAME}/installer/update_compose.sh"
-
-echo "Running update_compose.sh once to ensure it works..."
-curl -fsSL "${UPDATE_URL}" -o "${UPDATE_SCRIPT}"
-chmod +x "${UPDATE_SCRIPT}"
-if ! "${UPDATE_SCRIPT}" "${ENV_NAME}" "${WORKING_DIRECTORY}"; then
-    echo "Error: update_compose.sh failed. Not adding cronline."
-    exit 1
-fi
-echo "update_compose.sh ran successfully."
-
-printf -v UPDATE_URL_Q "%q" "${UPDATE_URL}"
-printf -v UPDATE_SCRIPT_Q "%q" "${UPDATE_SCRIPT}"
-printf -v ENV_NAME_Q "%q" "${ENV_NAME}"
-printf -v WORKING_DIRECTORY_Q "%q" "${WORKING_DIRECTORY}"
-
-CRON_CMD="*/15 * * * * curl -fsSL ${UPDATE_URL_Q} -o ${UPDATE_SCRIPT_Q} && chmod +x ${UPDATE_SCRIPT_Q} && ${UPDATE_SCRIPT_Q} ${ENV_NAME_Q} ${WORKING_DIRECTORY_Q} # VALIDITY_VALIDATOR_UPDATE"
-
-EXISTING_CRONTAB="$(crontab -l 2>/dev/null || true)"
-FILTERED_CRONTAB="$(printf "%s\n" "${EXISTING_CRONTAB}" | grep -F -v "VALIDITY_VALIDATOR_UPDATE" || true)"
-if [ -n "${FILTERED_CRONTAB}" ]; then
-    { printf "%s\n" "${FILTERED_CRONTAB}"; printf "%s\n" "${CRON_CMD}"; } | crontab -
-else
-    printf "%s\n" "${CRON_CMD}" | crontab -
-fi
-
-echo "Cron job installed successfully. It will run every 15 minutes."
-echo "Environment: ${ENV_NAME}"
-echo "Working directory: ${WORKING_DIRECTORY}"
+cp "${VALIDITY_DEPLOY_DIR}/.env.example" "${VALIDITY_DEPLOY_DIR}/.env"
+python3 - "${VALIDITY_DEPLOY_DIR}/.env" <<'PYENV'
+import secrets
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+data = path.read_text()
+for name in ('VALIDATOR_PYLON_OPEN_ACCESS_TOKEN', 'VALIDATOR_PYLON_IDENTITY_TOKEN', 'PYLON_METRICS_TOKEN'):
+    data = data.replace(name + '=\n', name + '=' + secrets.token_hex(32) + '\n')
+path.write_text(data)
+path.chmod(0o600)
+PYENV
+echo 'Private .env prepared. Complete it using docs/validator.md before running preflight.'

@@ -1,217 +1,66 @@
-# Context
+# Validity
 
-Validity is a Bittensor subnet for evidence-backed healthcare credential verification. The MVP serves RNs
-at travel nursing agencies, targeting CA, TX, FL, NY and IL. NPs/PAs follow the RN proof; physicians follow
-commercial validation. The user's localnet-first direction is authoritative.
+Validity is an RN credential-verification subnet for travel nursing agencies. Initial jurisdiction targets
+are CA, TX, FL, NY and IL; these are product targets, not established source coverage. NPs/PAs follow RNs;
+physicians follow commercial validation. Public naming is Validity only. Keep README introductory, link
+https://www.validitysg.io, and keep operator guides in docs/validator.md and docs/miner.md.
 
-Validity's local MVP runs RN evaluation across eight fixture profiles, persists complete rounds and scores,
-submits weight batches and verifies them directly on the chain. Real-source adapters and agency workflows follow. Read `subnet_design.md` and `localnet/README.md` first.
+## Active scope
 
-Score reports are signed by validator hotkeys and published directly to Hippius by an independent actor with
-a private SQLite outbox. The user confirmed dedicated ACL user tokens per validator team with Hippius and
-has generated three test credentials. Each validator uses its own team's credential profile; no shared
-upload service is required. Readers verify report signatures, content hashes and expected hotkeys.
-Weights remain on chain. The user confirmed bucket `localnet`, bucket-wide WRITE access for each token,
-and the private file `localnet/hippius-credentials.json` (ignored by Git). JSON and AWS INI profiles are
-supported; the example JSON contains the three test profile names. Do not infer prefix isolation from
-distinct tokens. GET/LIST checks passed with all three profiles. The user approved `owner` for test
-validator 3; `validator-1` and `validator-2` serve the other two. Retention is unconfirmed. WRITE-only
-tokens support upload acceptance; verified readback requires READ permission or a separate reader.
-See `docs/score-reporting.md`.
-Do not claim storage-chain finality from an S3 PUT. The HTTP upload gateway remains a development harness only.
-Production validators run independently on separate operator machines. Multiple identities on one machine
-are only a development test arrangement, with one private recovery journal per validator. SQLite must never
-be shared across validators or used as the combined leaderboard's report store. Hippius integration tests
-must use actual Hippius storage for shared reports, with no local object-store substitute or fallback.
-Keep the local JSON backend confined to development harness and automated transport tests.
-Delivery acknowledgements are scoped by destination, so local-test receipts never count as Hippius uploads.
-The localnet now has three running validators (chain UIDs 1, 10 and 11); their weight rows and three
-Hippius signatures in one window have passed independent readback. Additional sidecars are defined in
-`localnet/compose.hippius.yml`; the Hippius reader uses port 8091. Current report publication takes priority
-over historical backfill. The user requested a simple bucket layout: `<validator-hotkey>/<epoch-start>.json`,
-one signed snapshot containing all miners from the latest completed round in that epoch. No extra
-chain/subnet/report-ID directories. Chain, subnet, source and report hash remain inside the signed JSON.
-Superseded snapshots stay in the private journal and cannot overwrite a newer epoch file on retry.
-Use a dedicated bucket per network/subnet. See `docs/localnet-implementation.md` for measured results.
+The user moved testing to Bittensor testnet with synthetic RN evaluations and production deployment
+practices. Read subnet_design.md and docs/validator.md. Do not revive the retired local chain or same-host
+multi-validator harness. The netuid is user-supplied. Never invent one or reuse prior journals/wallets.
+The target Hippius bucket is validity-testnet. Every operator runs independently with its own hotkey,
+ACL token and private recovery journal. Secrets belong in ignored mode-0600 .env files; cryptographic
+wallet/TLS key files are protected read-only mounts. Never print secrets, resolved compose environments,
+wallet seeds, private key files or signed S3 URLs.
 
-## Repository layout
+Weights go to chain; signed raw scores go directly to real Hippius. Object layout is
+<validator-hotkey>/<epoch-start>.json, containing every miner in the latest complete round of that epoch.
+Use a separate bucket per network/subnet. Bucket-wide tokens do not establish prefix isolation. Signatures
+establish authorship, not availability or truth. Private SQLite journals must not be shared across
+operators or used as the combined leaderboard store. Storage failure must not block weights. Test doubles
+live only under validator/tests; deployed code has no local storage backend or upload gateway.
 
-This is a monorepo with two **independent** uv projects plus shared local-development tooling:
+Synthetic evaluation is the only implemented RN source. Keep scope=synthetic-rn and the fictional ZZ-TEST
+identifiers explicit. Real-source adapters and agency workflows follow. Do not claim that preparation,
+a successful PUT, or a queued weight proposal establishes live testnet completion.
 
-- `validator/` — Validity subnet validator (own `pyproject.toml`, `uv.lock`, `.venv`); also holds the
-  production `Dockerfile`
-- `miner/` — Bittensor subnet miner (own `pyproject.toml`, `uv.lock`, `.venv`)
-- `localnet/` — Local subtensor + pylon + bootstrap + miner fixtures for end-to-end development
-- `installer/` — Copier-rendered validator installer scripts (`install.sh`,
-  `update_compose.sh`, `README.md`); rendered by `copier copy` when adapting the template
-- `envs/deployed/` — Copier-rendered production `docker-compose.yml` (validator + pylon);
-  the rendered repo is promoted on the `deploy-config-production` branch, with this compose file and the
-  installer scripts as the operator-critical files
-- `.github/workflows/` — Copier-rendered CI; `build-validator.yml` builds and pushes the validator
-  image to a registry on push to `deploy-build-*` branches
-- `protocol/localnet-v1/` — local RN request/response JSON schemas and semantics
-- `protocol/score-reports-v1/` — signed score summary schema and transport contract
-- `knowledge/` — Bittensor, validator runtime, and localnet domain knowledge
-- `docs/` — validator and miner guides (`validator.md`, `miner.md`) and implementation reports
+## Layout and tools
 
-There is **no** top-level Python project and **no** uv workspace. Run `uv sync` inside `validator/` or `miner/`
-before working on it (use `--frozen`). There is no global `uv run` from the repo root.
+- validator/: independent Python 3.14 uv project, src, tests, locked dependencies, Dockerfile.
+- validator/src/validator/synthetic/: public fictional board snapshots and reviewed expected labels.
+- protocol/: versioned RN exchange and signed score report schemas.
+- envs/deployed/: one-operator testnet Compose deployment and .env.example.
+- installer/: private config initialization and explicit digest-pinned deployment.
+- docs/: operator guides. knowledge/: internal domain/runtime references.
 
-Developer quickstart for the end-to-end dev environment (subtensor + pylon + validator + miner): see
-`localnet/README.md`.
+Run uv sync --frozen and uv run --frozen inside validator/. There is no root uv project.
+Before subnet design/code work, read knowledge/bittensor/INDEX.yaml and
+knowledge/bittensor/subnet.invariants.yaml directly; re-read indices after compaction. Then read relevant
+knowledge files. Preserve the validator-only rule: define miner contracts, never ship production miner
+implementations. Automated test servers remain test-only.
 
-Ruff and basedpyright config is duplicated between `validator/pyproject.toml` and `miner/pyproject.toml`. When
-changing tooling config, keep both in sync.
+## Runtime requirements
 
-## Current implementation workflow
+Use the installed Nexus actor runtime and Pylon chain sidecar. Before validator edits read
+validator/.venv/lib/python3.14/site-packages/nexus/docs/nexus.md and discover the public nexus.v1 APIs.
+Import only versioned public runtime modules. Do not add the Bittensor SDK to the validator or create
+background work outside actor ownership. Reuse built-in components and public extension points.
+CredentialHTTPS extends the public communicator: synchronous mTLS plus hotkey signatures, bounded
+responses, no redirects/proxy discovery, registered public IP endpoints, no public callback listener.
+One request is in flight; durable assignments recover after restart. Weight and report clocks use separate
+contexts. Do not replace durable state with process memory. One journal lock prevents duplicate processes
+on a host; operators must also ensure only one active host uses their hotkey.
 
-Rendering is complete; do not render this working repository again. The accepted local scope is in
-`subnet_design.md`. Follow the user-approved incremental order: local baseline, RN exchange, durable
-scoring/weights, failure/transition tests, real-source adapters, website integration. The parent workspace
-contains the detailed plan and research. External-source access does not block fixture development.
+Keep structured logging and OpenTelemetry event counters/duration histograms for each subsystem. Do not
+log credential validation inputs or untrusted response bodies. Default deployment has bounded local logs
+and a heartbeat healthcheck, no external telemetry forwarding. Trace export remains optional.
 
-Use `uv sync --frozen` and `uv run --frozen` within each independent project. The local fixture and smoke
-checker run through the miner project's frozen environment. All newly added miner behavior stays under
-`localnet/`; the existing `miner/` echo server remains a baseline.
+## Quality gates
 
-# Knowledge base
-
-## Preparing for tasks
-
-Start by discovering the information available in the knowledge base with `find knowledge -type f | sort`
-Crucially: Never summarize index files. Never delegate reading indices to agents or exploration tools. During
-your tasks and conversations, eagerly read additional files if they could be relevant. After compaction,
-re-read indices directly and read relevant files again so as not to forget crucial details.
-
-## Bittensor domain
-
-Whenever Bittensor domain knowledge is required, focus on the Bittensor knowledge files and skip the rest. It
-is important to first understand the specifics of the Bittensor ecosystem, work with high-level concepts, and
-iterate on the subnet's design rather than jumping straight into implementation details. Designing a subnet is
-a complex reasoning process and requires careful consideration on multiple levels.
-
-Contains, among others:
-
-- how to frame subnet ideas into the bittensor ecosystem
-- requirements and invariants that must be satisfied by a good subnet design
-- theory behind validation, mining, incentives, miner-validator contract
-- suggested external integrations and tools in the ecosystem
-
-Index: knowledge/bittensor/INDEX.yaml
-
-Recommended subnet design location: ./subnet_design.md (create when needed)
-
-## Nexus
-
-Nexus is the framework for building Bittensor subnet validators. It replaces the bittensor SDK for validator
-development. All validator code runs inside Nexus — it is the complete runtime. You must use Nexus for
-implementing the validator.
-
-Nexus provides a large set of reusable components that handle common validator concerns. Before writing any
-code, making any decisions, or responding with recommendations — discover what Nexus offers. It will likely
-already handle most of the requirements of the subnet you are working on.
-
-The Nexus knowledge base ships with the Nexus package — find it in `validator/.venv` within the installed
-Nexus package under `docs/`. Make sure Nexus is installed first by running `uv sync` in `validator/`. Read
-`docs/nexus.md` in the Nexus package — it is the grounding document for all validator implementation work.
-
-Whenever working on validator code, double-check compliance with Nexus's best practices, coding guidelines,
-requirements, and correct and optimal usage of Nexus components.
-
-Skip reading Nexus KB for higher level tasks that do not touch the code.
-
-### Pylon
-
-Sidecar subtensor communication proxy. Nexus uses Pylon for all subtensor (blockchain) communication. The pylon
-client's source code can be found and inspected in `validator/.venv`.
-
-Skip for higher level tasks that do not touch the code.
-
-### Observability
-
-`envs/deployed/docker-compose.yml` ships a Prometheus-based metrics stack:
-`cadvisor` (per-container metrics), `node-exporter` (host metrics), a local
-`prometheus` service (image `bittensor_prometheus`) that scrapes `cadvisor`,
-the host `node-exporter`, and Pylon's `/metrics` (using the Bearer token from
-`PYLON_METRICS_TOKEN`, generated by `installer/install.sh`), and a
-`prometheus-proxy` sidecar that remote-writes to `https://prometheus.bactensor.io`.
-
-The validator has credential event and operation-duration instruments in `credentials/pipeline.py`.
-It does **not** expose a `/metrics` endpoint or configure a metrics exporter in the current local slice. When you
-extend the validator (new payload creators, scorers, nodes, weight setters),
-treat metrics as first-class and follow Nexus's own conventions: inspect the
-installed Nexus package (`validator/.venv` after `uv sync`, starting from
-`docs/nexus.md` and the package sources) to see how Nexus exposes and registers
-metrics for its components (actors, engine...), and mirror that
-approach when adding observability to your validator. Every new subsystem
-should ship with at least one event counter and one latency histogram, named
-consistently with the Nexus patterns you find there. If you expose a validator
-`/metrics` endpoint, add it into `envs/deployed/docker-compose.yml`
-scrape targets and update `installer/README.md`.
-
-#### Distributed tracing
-
-The validator emits OpenTelemetry traces, configured in `validator/src/validator/otel.py`
-(rendered to `otel.py`) and wired in from `main()` right after `configure_logging`. Resource
-attributes **deliberately carry no operator hotkey** — the observability proxy adds it downstream;
-the structlog processors in `logging_config.py` stamp the same attributes onto every log line so logs
-and traces correlate.
-
-In deployment the validator exports to a `grafana/alloy` sidecar that tail-samples and forwards to an
-OTLP/HTTP upstream (`envs/deployed/alloy/config.alloy`). **`TRACES_UPSTREAM_*` are required by
-the sidecar** — Alloy crash-loops on startup without an endpoint and credentials. `update_compose.sh`
-keeps both `docker-compose.yml` and `alloy/config.alloy` in sync on operator hosts.
-
-#### Structured logging
-
-The validator logs exclusively via `structlog`. Logging and structlog are configured in
-`validator/src/validator/logging_config.py`, tunable via `VALIDATOR_LOGGING_`-prefixed
-environment variables.
-
-Skip for higher level tasks that do not touch the code.
-
-## localnet
-
-Local development environment that allows running a subnet locally, as opposed to testnet or mainnet. KB
-contains everything needed to set it up and operate it: templates, recipes, requirements, operational
-guidelines, best practices, gotchas, and much more.
-
-Index: knowledge/localnet/INDEX.md Localnet resources: localnet/*
-
-Read when working on or debugging issues during development on localnet. Skip for higher level tasks that do
-not touch the code.
-
-## Coding guidelines
-
-Location: knowledge/guidelines.coding-and-qa.md
-
-Conventions, tooling, best practices, QA gates, comments, documentation, and more.
-
-Read when working with any kind of code, be it validator, localnet, or any other code in this repository. Skip
-for higher level tasks that do not touch the code.
-
-# General hints
-
-- use `uv` instead of `python` for managing dependencies, running scripts, entrypoints, ad-hoc code
-    - `uv add ...` / `uv remove ...` / `uv sync` (+ `--all-groups`, `--all-extras`)
-    - `uv run --with foo,bar ...` (with temporary dependencies)
-    - `uv run python -c '...'` / `uv run some/script.py` (code or script)
-
-# Documentation rules
-
-Keep public documentation and user-facing communication focused on Validity, its RN pilot, and its
-implementation. Avoid upstream framework branding, template history, and comparisons. Exact dependency
-identifiers and internal runtime guidance remain technical maintenance references, not product messaging.
-
-Keep the root README introductory, with the project website URL (`https://www.validitysg.io`) and links to
-the guides. Keep validator/miner setup, configuration, and quality checks in `docs/validator.md` and
-`docs/miner.md`. Do not describe a separate website repository in the README.
-
-Keep README.md, AGENTS.md, tests, docstrings, and code up to date and in sync. If one changes, update the
-others. Whenever updated, all information, claims, guides, commands, etc. in these files must be verified and
-tested. Take great care to avoid drift between these files.
-
-
----
-
-Note: CLAUDE.md and .cursorrules both link to CLAUDE.md - they are all the same file. No need to re-read it.
+Read knowledge/guidelines.coding-and-qa.md. Use Python 3.14, strict basedpyright and no weakened rules.
+Run in order: ruff check --fix; ruff format; basedpyright; pytest -q --tb=line -r f.
+Exercise security boundaries, durable retries, chain identity gates and the real TLS stack. Keep docs,
+schemas, examples and tests aligned. Build and smoke-test the container before describing it as usable.
+Live chain/Hippius checks require the actual netuid, registered wallets, TLS material and authorized tokens.

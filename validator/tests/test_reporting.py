@@ -19,16 +19,17 @@ from botocore.response import StreamingBody
 from botocore.stub import Stubber
 from pydantic import ValidationError
 
+from tests.storage_helpers import GatewayUploader, LocalReportStore, ServiceUploader
 from tests.test_evaluation import CATALOG, response_for
 from validator.credentials.evaluation import EvaluationLedger
-from validator.reporting.gateway import GatewaySettings, ScoreHTTPServer
+from validator.reporting.credentials import StorageCredentials
 from validator.reporting.journal import ReportJournal
 from validator.reporting.protocol import MinerScore, ScoreReport, SignedScoreReport, UploadReceipt
-from validator.reporting.publisher import ReportingSettings, ReportSender
+from validator.reporting.publisher import ReportSender
+from validator.reporting.reader import ReaderSettings, ScoreHTTPServer
 from validator.reporting.service import ReportPage, ScoreService
 from validator.reporting.snapshot import SupersededReport
-from validator.reporting.storage import HippiusStore, LocalReportStore
-from validator.reporting.upload import GatewayUploader
+from validator.reporting.storage import HippiusStore
 
 NOW = datetime(2026, 9, 16, tzinfo=UTC)
 GENESIS = "0x" + "a" * 64
@@ -216,7 +217,7 @@ def test_three_validators_remain_separate_through_real_http_and_pagination(tmp_p
                     ledger = completed_ledger(tmp_path / f"validator-{index}.sqlite3", MINERS[index % 2])
                     journal = ReportJournal(ledger.path, GENESIS, 2, key)
                     journal.initialize()
-                    sender = ReportSender(journal, GatewayUploader(client, str(client.base_url)))
+                    sender = ReportSender(journal, ServiceUploader(service))
                     sender.tick(NOW)
                     assert journal.due(NOW) is None
                 collected: list[SignedScoreReport] = []
@@ -238,9 +239,8 @@ def test_three_validators_remain_separate_through_real_http_and_pagination(tmp_p
                     item.verify()
                     assert sorted(miner.score for miner in item.report.miners) == [0, 1]
                     assert all(miner.assigned_tasks == 5 for miner in item.report.miners)
-                assert client.post("/v1/reports", content=b"{}").status_code == 400
+                assert client.post("/v1/reports", content=b"{}").status_code == 405
                 assert client.get("/v1/reports?epoch_start=-1").status_code == 400
-                server.allow_uploads = False
                 assert client.post("/v1/reports", content=signed_report().model_dump_json()).status_code == 405
         finally:
             server.shutdown()
@@ -313,9 +313,9 @@ def test_collector_omits_corrupted_or_misplaced_reports(tmp_path: Path) -> None:
 
 
 def test_hippius_s3_adapter_put_readback_and_paginated_list(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "test")
-    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "test")
-    store = HippiusStore.connect("test-scores")
+    monkeypatch.setenv("HIPPIUS_ACCESS_KEY_ID", "test")
+    monkeypatch.setenv("HIPPIUS_SECRET_ACCESS_KEY", "test")
+    store = HippiusStore.connect("test-scores", StorageCredentials.model_validate({}))
     client = store.client
     assert client.meta.region_name == "decentralized"
     assert client.meta.endpoint_url == "https://s3.hippius.com"
@@ -350,10 +350,6 @@ def test_hippius_s3_adapter_put_readback_and_paginated_list(monkeypatch: pytest.
         stub.assert_no_pending_responses()
 
 
-def test_configuration_requires_explicit_chain_and_remote_tls() -> None:
-    with pytest.raises(ValidationError, match="genesis"):
-        ReportingSettings(enabled=True)
-    with pytest.raises(ValidationError, match="HTTPS"):
-        ReportingSettings(gateway_url="http://example.com")
+def test_reader_requires_valid_validator_hotkeys() -> None:
     with pytest.raises(ValidationError, match="hotkey"):
-        GatewaySettings(chain_genesis=GENESIS, netuid=2, validators=frozenset(["invalid"]))
+        ReaderSettings(chain_genesis=GENESIS, netuid=2, validators=frozenset(["invalid"]), bucket="test-scores")

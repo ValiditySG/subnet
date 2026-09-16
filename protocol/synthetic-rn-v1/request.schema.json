@@ -39,8 +39,8 @@
   "description": "One local license lookup with an absolute UTC deadline.",
   "properties": {
     "protocol_version": {
-      "const": "validity.localnet.v1",
-      "default": "validity.localnet.v1",
+      "const": "validity.synthetic-rn.v1",
+      "default": "validity.synthetic-rn.v1",
       "title": "Protocol Version",
       "type": "string"
     },
@@ -81,6 +81,5 @@
     "deadline_at"
   ],
   "title": "CredentialRequest",
-  "type": "object",
-  "$schema": "https://json-schema.org/draft/2020-12/schema"
+  "type": "object"
 }

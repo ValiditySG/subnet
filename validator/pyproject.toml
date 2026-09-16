@@ -1,7 +1,7 @@
 [project]
 name = "validator"
 version = "0.1.0"
-description = "Nexus-based Bittensor subnet validator."
+description = "Validity RN credential evaluation validator."
 requires-python = ">=3.14"
 dependencies = [
     "attrs>=26.1.0", # previously this was required for Nexus (litestar needed it) #TODO: See if this is still the case
@@ -73,4 +73,4 @@ reportUnusedImport = "warning"
 reportExplicitAny = "none"
 venvPath = "."
 venv = ".venv"
-extraPaths = ["../localnet/miners", "src", ".venv/lib/python3.14/site-packages"]
+extraPaths = ["src", ".venv/lib/python3.14/site-packages"]

@@ -10,7 +10,9 @@ from dotenv import load_dotenv
 from pydantic import AwareDatetime
 
 from validator.credentials.protocol import WireModel
-from validator.reporting.gateway import GatewaySettings
+from validator.operator import check_env_file
+from validator.reporting.credentials import StorageCredentials
+from validator.reporting.reader import ReaderSettings
 from validator.reporting.service import ScoreService
 from validator.reporting.storage import HippiusStore
 
@@ -64,20 +66,17 @@ def verify_window(service: ScoreService, epoch_start: int, bucket: str) -> Verif
 @click.option("--epoch-start", required=True, type=click.IntRange(0))
 @click.option("--output", type=click.Path(dir_okay=False, path_type=Path), default=None)
 def main(env_file: Path, epoch_start: int, output: Path | None) -> None:
-    """Verify all three test validators from the real bucket using a READ/LIST credential profile.
+    """Verify all configured validators from real Hippius with a reader credential pair.
 
     Raises:
         click.ClickException: If configuration or real Hippius readback cannot establish the expected set.
         ValueError: Caught and reported as a CLI failure for incomplete reader configuration.
     """
+    check_env_file(env_file)
     load_dotenv(env_file)
     try:
-        settings = GatewaySettings.model_validate({})
-        if settings.backend != "hippius" or not settings.bucket or len(settings.validators) != 3:
-            raise ValueError("Require Hippius backend, bucket and exactly three expected hotkeys")
-        if settings.credentials_file is None or not settings.profile:
-            raise ValueError("Require an explicit reader credential file and profile")
-        store = HippiusStore.connect(settings.bucket, settings.profile, settings.credentials_file)
+        settings = ReaderSettings.model_validate({})
+        store = HippiusStore.connect(settings.bucket, StorageCredentials.model_validate({}))
         try:
             service = ScoreService(store, settings.chain_genesis, settings.netuid, settings.validators)
             result = verify_window(service, epoch_start, settings.bucket)

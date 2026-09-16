@@ -1,4 +1,4 @@
-"""Versioned local fixture contract, independent of the Nexus callback envelope."""
+"""Versioned synthetic RN request, response and evidence contract."""
 
 from __future__ import annotations
 
@@ -30,9 +30,9 @@ class ProviderQuery(WireModel):
 
 
 class CredentialRequest(WireModel):
-    """One local license lookup with an absolute UTC deadline."""
+    """One synthetic license lookup with an absolute UTC deadline."""
 
-    protocol_version: Literal["validity.localnet.v1"] = "validity.localnet.v1"
+    protocol_version: Literal["validity.synthetic-rn.v1"] = "validity.synthetic-rn.v1"
     task_id: UUID
     provider_query: ProviderQuery
     checks: tuple[Literal["fixture_license"], ...] = Field(min_length=1, max_length=1)
@@ -77,7 +77,7 @@ class CheckResult(WireModel):
 class CredentialResponse(WireModel):
     """Untrusted miner output; request binding and truth are checked separately."""
 
-    protocol_version: Literal["validity.localnet.v1"] = "validity.localnet.v1"
+    protocol_version: Literal["validity.synthetic-rn.v1"] = "validity.synthetic-rn.v1"
     task_id: UUID
     provider_ref: str = Field(pattern=r"^fictional-[0-9]+$")
     identity_resolution: Identity

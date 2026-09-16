@@ -5,10 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
-from typing import Literal, Self, override
-from urllib.parse import urlsplit
+from typing import override
 
-import httpx
 from bittensor_wallet import Wallet
 from nexus.v1 import (
     Actor,
@@ -25,72 +23,39 @@ from nexus.v1 import (
     SinkName,
     get_logger,
 )
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
+from validator.config import WalletSettings
+from validator.credentials.evaluation import EvaluationLedger
+from validator.reporting.credentials import StorageCredentials
 from validator.reporting.journal import ReportJournal
 from validator.reporting.protocol import OBJECT_LAYOUT, ChainId
 from validator.reporting.service import duration, events
 from validator.reporting.snapshot import SupersededReport
 from validator.reporting.storage import HippiusStore
-from validator.reporting.upload import GatewayUploader, HippiusUploader, ReportUploader
+from validator.reporting.upload import HippiusUploader, ReportUploader
 
 logger = get_logger(__name__)
 
 
-class ReportingSettings(BaseSettings):
-    """Opt-in publishing with a private hotkey and a dedicated Hippius ACL credential profile."""
+class ReportingSettings(WalletSettings):
+    """Mandatory Hippius publishing with an explicit bucket and .env credential pair."""
 
-    model_config = SettingsConfigDict(env_prefix="VALIDATOR_REPORTS_", extra="ignore")
-    enabled: bool = False
-    backend: Literal["hippius", "gateway"] = "hippius"
-    bucket: str | None = None
-    credentials_file: Path | None = None
-    profile: str | None = None
-    verify_readback: bool = False
-    gateway_url: str = "http://127.0.0.1:8090"
-    chain_genesis: ChainId | None = None
-    wallet_path: Path = Path("../localnet/wallets")
-    wallet_name: str = "validator"
-    hotkey_name: str = "default"
-    timeout_seconds: float = Field(default=5, gt=0, le=30)
-
-    @model_validator(mode="after")
-    def check_enabled(self) -> Self:
-        if self.enabled and self.chain_genesis is None:
-            raise ValueError("Publishing requires the local chain genesis hash")
-        if (
-            self.enabled
-            and self.backend == "hippius"
-            and (not self.bucket or self.credentials_file is None or not self.profile)
-        ):
-            raise ValueError("Direct Hippius publishing requires bucket, credentials_file and profile")
-        url = urlsplit(self.gateway_url)
-        if url.scheme != "https" and not (url.scheme == "http" and url.hostname in ("localhost", "127.0.0.1", "::1")):
-            raise ValueError("Use HTTPS for a remote score service")
-        if url.username or url.password or url.query or url.fragment or url.path not in ("", "/"):
-            raise ValueError("Gateway URL must be an origin without credentials, path or query")
-        return self
+    bucket: str = Field(min_length=3, validation_alias="HIPPIUS_BUCKET")
+    verify_readback: bool = Field(default=True, validation_alias="HIPPIUS_VERIFY_READBACK")
+    chain_genesis: ChainId
+    timeout_seconds: float = Field(default=5, gt=0, le=30, validation_alias="HIPPIUS_TIMEOUT_SECONDS")
 
     @property
     def destination(self) -> str:
-        """Credential rotation preserves delivery status; changing storage targets does not."""
-        if self.backend == "hippius":
-            return f"hippius:https://s3.hippius.com/{self.bucket}#{OBJECT_LAYOUT}"
-        return f"gateway:{self.gateway_url.rstrip('/')}#{OBJECT_LAYOUT}"
+        """Rotating credentials preserves receipts; changing bucket or layout does not."""
+        return f"hippius:https://s3.hippius.com/{self.bucket}#{OBJECT_LAYOUT}"
 
     def uploader(self, hotkey: str) -> ReportUploader:
-        """Construct this validator's transport inside its publishing actor.
-
-        Raises:
-            ValueError: If direct upload credentials are incomplete.
-        """
-        if self.backend == "gateway":
-            return GatewayUploader(httpx.Client(timeout=self.timeout_seconds), self.gateway_url)
-        if not self.bucket or self.credentials_file is None or not self.profile:
-            raise ValueError("Direct Hippius publishing requires a dedicated credential profile")
+        """Construct this operator's authenticated transport inside its actor."""
+        credentials = StorageCredentials.model_validate({})
         return HippiusUploader(
-            HippiusStore.connect(self.bucket, self.profile, self.credentials_file, self.timeout_seconds),
+            HippiusStore.connect(self.bucket, credentials, self.timeout_seconds),
             hotkey,
             verify_readback=self.verify_readback,
         )
@@ -161,15 +126,14 @@ class PublishReportsActor(ConsumerActor[BlockBeat]):
     @override
     def on_start(self) -> None:
         settings = self.node.settings
-        if settings.chain_genesis is None:
-            raise ValueError("Reporting chain genesis is required")
         key = Wallet(
             name=settings.wallet_name, hotkey=settings.hotkey_name, path=str(settings.wallet_path)
         ).get_hotkey()
+        EvaluationLedger(self.node.path).initialize_evaluation()
         journal = ReportJournal(self.node.path, settings.chain_genesis, self.node.netuid, key, settings.destination)
         journal.initialize()
         self.sender = ReportSender(journal, settings.uploader(key.ss58_address))
-        logger.info("Score publisher ready: validator=%s backend=%s", key.ss58_address, settings.backend)
+        logger.info("Score publisher ready: validator=%s backend=hippius", key.ss58_address)
 
     @override
     def on_stop(self) -> None:

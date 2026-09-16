@@ -26,7 +26,7 @@ class ReportJournal:
         chain_genesis: str,
         netuid: int,
         key: Keypair,
-        destination: str = f"gateway:http://127.0.0.1:8090#{OBJECT_LAYOUT}",
+        destination: str = f"unconfigured:#{OBJECT_LAYOUT}",
     ) -> None:
         self.path = path
         self.chain_genesis = chain_genesis

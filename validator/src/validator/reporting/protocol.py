@@ -49,10 +49,10 @@ class MinerScore(WireModel):
 
 
 class ScoreReport(WireModel):
-    """One completed local RN round, grouped by chain epoch and evaluation context."""
+    """One completed synthetic RN round, grouped by chain epoch and evaluation context."""
 
     schema_version: Literal["validity.score-report.v1"] = "validity.score-report.v1"
-    scope: Literal["localnet-fixture"] = "localnet-fixture"
+    scope: Literal["synthetic-rn"] = "synthetic-rn"
     chain_genesis: ChainId
     netuid: int = Field(ge=1, le=65535)
     validator_hotkey: HotkeyAddress

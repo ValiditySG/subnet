@@ -1,11 +1,9 @@
-"""Private Hippius S3 access and an explicit local-only storage substitute."""
+"""Explicitly authenticated Hippius S3 access."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
-from uuid import uuid4
 
 from boto3.session import Session
 from botocore.config import Config
@@ -15,7 +13,7 @@ from botocore.session import Session as CredentialSession
 if TYPE_CHECKING:
     from mypy_boto3_s3.client import S3Client
 
-from validator.reporting.credentials import load_credentials
+from validator.reporting.credentials import StorageCredentials
 from validator.reporting.protocol import MAX_REPORT_BYTES
 
 
@@ -46,28 +44,15 @@ class HippiusStore:
     def connect(
         cls,
         bucket: str,
-        profile: str | None = None,
-        credentials_file: Path | None = None,
+        credentials: StorageCredentials,
         timeout_seconds: float = 10,
     ) -> HippiusStore:
-        """Load a dedicated ACL profile without changing another client's credential environment.
-
-        Raises:
-            ValueError: If a specified credential file or profile is missing required S3 credentials.
-        """
-        if credentials_file is not None:
-            if not profile:
-                raise ValueError("A credential file requires an existing file and an explicit profile")
-            credentials = load_credentials(credentials_file, profile)
-            # File profiles are selected by our loader, independently of ambient AWS_PROFILE settings.
-            session = CredentialSession(session_vars={"profile": (None, None, None, None)})
-            session.set_credentials(
-                credentials.aws_access_key_id.get_secret_value(),
-                credentials.aws_secret_access_key.get_secret_value(),
-                credentials.aws_session_token.get_secret_value() if credentials.aws_session_token else None,
-            )
-        else:
-            session = CredentialSession(profile=profile)
+        """Use only this operator's explicit .env credentials, never ambient AWS profiles."""
+        session = CredentialSession(session_vars={"profile": (None, None, None, None)})
+        session.set_credentials(
+            credentials.access_key_id.get_secret_value(),
+            credentials.secret_access_key.get_secret_value(),
+        )
         client = Session(botocore_session=session).client(
             "s3",
             endpoint_url="https://s3.hippius.com",
@@ -120,42 +105,3 @@ class HippiusStore:
             tuple(item["Key"] for item in result.get("Contents", []) if "Key" in item),
             result.get("NextContinuationToken"),
         )
-
-
-class LocalReportStore:
-    """Localnet test substitute; this is not a Hippius upload or durability claim."""
-
-    def __init__(self, directory: Path) -> None:
-        self.directory = directory
-        directory.mkdir(parents=True, exist_ok=True)
-
-    def read(self, key: str) -> bytes | None:
-        """Read bounded local objects using the same size limit as the S3 adapter.
-
-        Raises:
-            ValueError: If a local object exceeds the protocol limit.
-        """
-        path = self.directory / key
-        if not path.exists():
-            return None
-        with path.open("rb") as source:
-            data = source.read(MAX_REPORT_BYTES + 1)
-        if len(data) > MAX_REPORT_BYTES:
-            raise ValueError("Stored report exceeds the protocol limit")
-        return data
-
-    def write(self, key: str, data: bytes) -> None:
-        path = self.directory / key
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_suffix(f".{uuid4()}.tmp")
-        try:
-            temporary.write_bytes(data)
-            temporary.replace(path)
-        finally:
-            temporary.unlink(missing_ok=True)
-
-    def list_page(self, prefix: str, token: str | None, limit: int) -> ObjectPage:
-        keys = sorted(str(path.relative_to(self.directory)) for path in (self.directory / prefix).rglob("*.json"))
-        remaining = [key for key in keys if token is None or key > token]
-        page = remaining[:limit]
-        return ObjectPage(tuple(page), page[-1] if len(remaining) > limit else None)

@@ -17,7 +17,7 @@ from validator.credentials.fixtures import FixtureCatalog
 from validator.credentials.pipeline import failure_outcome
 from validator.credentials.protocol import CheckResult, CredentialRequest, CredentialResponse, Evidence
 
-FIXTURES = Path(__file__).parents[2] / "localnet/fixtures"
+FIXTURES = Path(__file__).parents[1] / "src/validator/synthetic"
 CATALOG = FixtureCatalog.model_validate_json((FIXTURES / "expected-v1.json").read_bytes())
 NEXT = FixtureCatalog.model_validate_json((FIXTURES / "expected-v2.json").read_bytes())
 NOW = datetime(2026, 9, 15, tzinfo=UTC)

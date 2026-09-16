@@ -1,21 +1,17 @@
 # Validity
 
-Validity is a Bittensor subnet for evidence-backed healthcare credential verification. Miners collect source evidence, and validators evaluate the reliability of their findings.
+Validity is a Bittensor subnet for evidence-backed healthcare credential verification.
 
 [Website](https://www.validitysg.io)
-[X (Twitter)](https://x.com/validitysg)
 
-## RN-first MVP
+The pilot focuses on registered nurses working with travel nursing agencies. RNs prove the verification loop; NPs and PAs follow commercial validation; physicians are the longer-term market.
 
-The MVP focuses on **registered nurses at travel nursing agencies**, targeting California, Texas, Florida, New York, and Illinois. RNs prove the verification loop, NPs and PAs prove the revenue model, and physicians follow commercial validation.
+The current release runs **synthetic RN evaluations on Bittensor testnet**. Validators score miner responses, submit weights to the chain, and publish hotkey-signed scores to Hippius. Synthetic results do not establish real nursing license status.
 
-The local MVP verifies fictional RN cases, scores miner responses, submits chain weights and preserves results across restarts. Real-source coverage and agency workflows follow. See the [implementation report](docs/localnet-implementation.md) for the current milestone.
+## Guides
 
-## Documentation
-
-- [Validator guide](docs/validator.md) — setup, configuration, persistence, and checks.
-- [Score reporting](docs/score-reporting.md) — signed reports, local upload service and storage boundaries.
-- [Miner guide](docs/miner.md) — RN fixture, local operation, and protocol.
-- [Localnet guide](localnet/README.md) — start and verify the complete development environment.
-- [Subnet design](subnet_design.md) — current scope and implementation sequence.
-- [Local RN protocol](protocol/localnet-v1/README.md) — request, response, and evidence semantics.
+- [Validators](docs/validator.md)
+- [Miners](docs/miner.md)
+- [Subnet design](subnet_design.md)
+- [Score reporting](docs/score-reporting.md)
+- [Synthetic RN protocol](protocol/synthetic-rn-v1/README.md)

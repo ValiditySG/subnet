@@ -1,8 +1,9 @@
-"""Localnet signed score upload/read HTTP service; the bucket stays private."""
+"""Private signed score reader; validators upload directly to Hippius."""
 
 from __future__ import annotations
 
 import json
+import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Literal, cast, override
@@ -16,26 +17,24 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from validator.logging_config import LoggingSettings, configure_logging
-from validator.reporting.protocol import MAX_REPORT_BYTES, ChainId
+from validator.operator import check_env_file
+from validator.reporting.credentials import StorageCredentials
+from validator.reporting.protocol import ChainId
 from validator.reporting.service import ScoreService
-from validator.reporting.storage import HippiusStore, LocalReportStore, ReportStore
+from validator.reporting.storage import HippiusStore
 
 logger = structlog.get_logger(__name__)
 
 
-class GatewaySettings(BaseSettings):
+class ReaderSettings(BaseSettings):
     """Credentials belong to this service, never validator or browser configuration."""
 
     model_config = SettingsConfigDict(env_prefix="HIPPIUS_", extra="ignore")
     chain_genesis: ChainId = Field()
     netuid: int = Field(ge=1, le=65535)
     validators: frozenset[str] = Field(min_length=1)
-    backend: Literal["hippius", "local"] = "local"
-    bucket: str = ""
-    credentials_file: Path | None = None
-    profile: str | None = None
-    local_directory: Path = Path("../localnet/state/score-objects")
-    host: str = "127.0.0.1"
+    bucket: str = Field(min_length=3)
+    host: Literal["127.0.0.1", "::1"] = "127.0.0.1"
     port: int = Field(default=8090, ge=1, le=65535)
 
     @field_validator("validators")
@@ -47,13 +46,13 @@ class GatewaySettings(BaseSettings):
 
 
 class ScoreHTTPServer(ThreadingHTTPServer):
-    """Supporting localnet service with bounded request bodies and read timeouts."""
+    """Private HTTP reader with bounded request bodies and read timeouts."""
 
     daemon_threads = True
 
-    def __init__(self, address: tuple[str, int], service: ScoreService, *, allow_uploads: bool = True) -> None:
+    def __init__(self, address: tuple[str, int], service: ScoreService) -> None:
         self.score_service = service
-        self.allow_uploads = allow_uploads
+        self.address_family = socket.AF_INET6 if ":" in address[0] else socket.AF_INET
         super().__init__(address, ScoreHandler)
 
 
@@ -78,36 +77,8 @@ class ScoreHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_POST(self) -> None:
-        """Accept a complete signed envelope and return its verified storage receipt.
-
-        Raises:
-            ValueError: Handled here as HTTP 400 for invalid framing or reports.
-        """
-        if self.path != "/v1/reports":
-            self.respond(404, b'{"error":"not found"}')
-            return
-        if not cast(ScoreHTTPServer, self.server).allow_uploads:
-            self.respond(405, b'{"error":"upload directly to Hippius with validator ACL credentials"}')
-            return
-        try:
-            if self.headers.get("Transfer-Encoding"):
-                raise ValueError("Chunked requests are not supported")
-            length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= MAX_REPORT_BYTES:
-                self.respond(413, b'{"error":"invalid report size"}')
-                return
-            data = self.rfile.read(length)
-            if len(data) != length:
-                raise ValueError("Incomplete request body")
-            receipt = self.service.upload(data)
-            self.respond(200, receipt.model_dump_json().encode())
-        except PermissionError:
-            self.respond(403, b'{"error":"validator or chain not admitted"}')
-        except ValueError:
-            self.respond(400, b'{"error":"invalid signed report"}')
-        except Exception as exc:
-            logger.warning("Score upload failed", error_type=type(exc).__name__)
-            self.respond(503, b'{"error":"storage unavailable; retry the same report"}')
+        """Validators publish directly to Hippius; this reader never accepts writes."""
+        self.respond(405, b'{"error":"upload directly to Hippius"}')
 
     def do_GET(self) -> None:
         """Serve paginated, verified reports for one explicit epoch."""
@@ -137,24 +108,21 @@ class ScoreHandler(BaseHTTPRequestHandler):
 @click.command()
 @click.option("--env-file", type=click.Path(exists=True, dir_okay=False, path_type=Path), default=None)
 def main(env_file: Path | None) -> None:
-    """Run the localnet upload gateway (use a TLS reverse proxy for remote validators).
+    """Run the private report reader behind an authenticated, rate-limited reverse proxy.
 
     Raises:
         click.ClickException: If the Hippius bucket or credential path is missing.
     """
-    load_dotenv(env_file)
+    selected = env_file or Path(".env")
+    if selected.exists():
+        check_env_file(selected)
+        load_dotenv(selected)
     configure_logging(LoggingSettings())
-    settings = GatewaySettings.model_validate({})
-    store: ReportStore
-    if settings.backend == "local":
-        store = LocalReportStore(settings.local_directory)
-    else:
-        if not settings.bucket:
-            raise click.ClickException("HIPPIUS_BUCKET is required for the Hippius backend")
-        store = HippiusStore.connect(settings.bucket, settings.profile, settings.credentials_file)
+    settings = ReaderSettings.model_validate({})
+    store = HippiusStore.connect(settings.bucket, StorageCredentials.model_validate({}))
     service = ScoreService(store, settings.chain_genesis, settings.netuid, settings.validators)
-    with ScoreHTTPServer((settings.host, settings.port), service, allow_uploads=settings.backend == "local") as server:
-        logger.info("Score service ready", backend=settings.backend, port=settings.port)
+    with ScoreHTTPServer((settings.host, settings.port), service) as server:
+        logger.info("Score reader ready", backend="hippius", port=settings.port)
         server.serve_forever()
 
 

@@ -1,94 +1,91 @@
-# Validator guide
+# Run a Validity validator on testnet
 
-Validity's local RN validator allocates the same cases to every miner, verifies source-backed responses, persists numerical scores, and submits weights from completed rounds. The [verification report](localnet-implementation.md) records the live evidence.
+This release uses fictional RN evaluations with production deployment practices. Run one operator identity on each host. The subnet netuid will be supplied after registration.
 
-## Start
+## Required operator configuration
 
-From the subnet repository root:
+From a reviewed checkout:
 
 ```sh
-localnet/run-in-tmux.sh
-uv run --frozen --project miner python localnet/mvp.py verify --version v1 --timeout 600
+bash installer/install.sh
 ```
 
-Set the fictional source to v1 first if a previous run selected v2. See the [localnet guide](../localnet/README.md) for prerequisites, source transitions, restarts and chain resets.
+This creates `envs/deployed/.env` with mode `0600` and distinct random chain-sidecar tokens. It preserves an existing file and starts no services. Fill in:
 
-## Run the validator separately
+| Setting | Value |
+| --- | --- |
+| `VALIDATOR_IMAGE` | Published validator image with `@sha256:<digest>` |
+| `VALIDATOR_NETUID` | Actual registered testnet subnet |
+| `VALIDATOR_TEMPO` | Actual subnet tempo; do not copy an assumed development value |
+| `VALIDATOR_WALLET_NAME`, `VALIDATOR_HOTKEY_NAME` | This operator's registered wallet |
+| `HOST_WALLET_DIR` | Absolute wallet directory with the signing hotkey and public coldkey only |
+| `HOST_TLS_DIR` | Absolute directory containing `ca.pem`, `client.pem`, `client-key.pem` |
+| `HIPPIUS_BUCKET` | `validity-testnet` |
+| `HIPPIUS_ACCESS_KEY_ID`, `HIPPIUS_SECRET_ACCESS_KEY` | This operator's dedicated ACL token pair |
 
-Start and register miners using the [manual startup instructions](../localnet/README.md#manual-startup). Run one validator per database. Then:
+Service tokens live only in `.env`. Wallet and TLS private keys remain protected files mounted read-only; never include a coldkey private key in the deployment. Give container UID/GID `10001:10001` read access to only the required files. Do not make private files world-readable. Do not reuse previous development wallets or recovery databases.
+
+The deployment fixes the chain endpoint to Bittensor testnet. The genesis hash was read directly from that endpoint on 2026-09-16:
+
+`0x8f9cf856bf558a14440e75569c9e58594757048d7b3a84b5d25f6bd978263105`
+
+The runtime rejects other configured chain IDs. Chain data is trusted through the operator's sidecar; the preflight checks its subnet identity and validator registration/permit. See the [official network reference](https://preview.bittensor.com/docs/concepts/network) for the public endpoint.
+
+## TLS and miner compatibility
+
+Validators require a trusted CA, a client certificate and matching private key. Miner servers must require client certificates, present certificates with the registered IP in their subject alternative names, and implement the [signed RN exchange](../protocol/synthetic-rn-v1/README.md). Exchange signatures bind both hotkeys, the chain, subnet and task. No insecure HTTP fallback, redirects or public validator callbacks are supported.
+
+TLS provisioning is explicit: do not generate a shared private key or distribute a CA private key to operators. The initial pilot may use an operator-managed CA with independently issued certificates. Keep its signing key offline. This is an admission mechanism for the pilot, not permissionless certificate discovery.
+
+## Start and update
+
+After the registered wallet has its validator permit and all required configuration is present:
+
+```sh
+bash installer/update_compose.sh
+```
+
+The script checks permissions and an immutable image digest, validates Compose without printing secrets, pulls pinned images, starts the private chain sidecar, runs read-only preflight, and starts the validator only if preflight passes. If the sidecar is still syncing, retry after it is ready. There are no unattended update jobs.
+
+Preflight checks settings, packaged synthetic data, wallet access, TLS files, sidecar subnet identity, registration, permit and Hippius read access. It does not prove miner reachability, PUT permission, actual chain-weight confirmation or future availability. Verify subnet tempo and weight constraints before starting; the deployment does not modify them.
+
+```sh
+cd envs/deployed
+docker compose ps
+docker compose logs --tail=100 validator
+```
+
+The validator runs without root privileges on a read-only root filesystem. Its named state volume is private to this operator. Log rotation is bounded; no metrics or chain-sidecar port is published. Container health requires a successful evaluation tick within three minutes. Optional tracing is disabled by default; no external telemetry destination is configured.
+
+The current transport processes one assignment at a time. A round takes five tasks per discovered miner. Size the pilot and score-age threshold so complete rounds remain fresh. It pauses rewards if complete current positive scores are unavailable.
+
+## Acceptance on the live subnet
+
+Before declaring the migration complete:
+
+1. Confirm the chain's genesis, subnet tempo, weight constraints, registered validator hotkey and permit.
+2. Complete a round against compatible miners and replay its persisted scores.
+3. Independently compare each validator's on-chain weight row and update block with its queued proposal. A log saying “queued” is insufficient.
+4. Read `validity-testnet/<hotkey>/<epoch-start>.json` through an independent reader and verify all expected signatures in the same evaluation window.
+5. Restart a validator and interrupt Hippius access; verify exact report retries and continuing weight operation.
+
+No live testnet completion is claimed before those checks pass. Synthetic scores remain unsuitable for agency license decisions.
+
+## Recovery and backups
+
+Stop the validator before copying its complete private state volume. Back up the journal and wallet identity together through the operator's secure backup process. Never mount the same journal on two validators or run the same hotkey concurrently on two hosts. The file lock only coordinates processes sharing one filesystem.
+
+Chain weights alone cannot reconstruct assignments, raw scores, penalties or pending reports. SQLite remains the private recovery journal; Hippius is the shared score store. Do not delete the state volume during ordinary updates. Changing network, subnet or hotkey requires new state.
+
+## Contributor checks
 
 ```sh
 cd validator
 uv sync --frozen
-uv run --frozen validator --env-file ../localnet/.env
-```
-
-`VALIDATOR_MODE=local_credentials` enables RN evaluation. `VALIDATOR_MODE=ping` selects the echo baseline.
-
-| Setting | Default / meaning |
-| --- | --- |
-| `NETUID` / `VALIDATOR_NETUID` | Required; local harness uses 2 |
-| `SUBNET_TEMPO` / `VALIDATOR_TEMPO` | 360 blocks; must match the sidecar and chain |
-| `VALIDATOR_FIXTURE_DIR` | `../localnet/fixtures` |
-| `VALIDATOR_LEDGER_PATH` | `../localnet/state/credentials.sqlite3` |
-| `VALIDATOR_TOTAL_PROCESSING_TIMEOUT` | Ten seconds |
-| `VALIDATOR_MAX_IN_FLIGHT` | 4 |
-| `VALIDATOR_MAX_SCORE_AGE` | Ten minutes; ISO 8601 value `PT10M` |
-| `VALIDATOR_CALLBACK_HOST` / `VALIDATOR_CALLBACK_PORT` | `127.0.0.1` / `8001` |
-
-## Scores and persistence
-
-See the [adopted policy](../subnet_design.md). Every round pins its source catalog and hotkey/UID roster. Remote failures count as zero. Validator interruptions are retried without counting the interrupted attempt. Source or registration changes void unfinished rounds. Legacy conformance records are preserved outside score windows.
-
-Epoch proposals remain fixed across retries. Source, age and current registrations are checked before handing weights to the sidecar. Queue acknowledgements and independent chain confirmations are stored separately. A pause prevents new submissions; prior on-chain weights can remain.
-
-Recompute a completed round from saved observations:
-
-```sh
-uv run --frozen --project validator python -m validator.credentials.audit localnet/state/credentials.sqlite3 1
-```
-
-Run that command from the repository root and replace `1` with a completed round ID. A changed score summary, incomplete round or inconsistent assignment fails replay.
-
-## Signed score publication
-
-Optional reporting runs independently of evaluation and weight setting. Each validator signs completed-round
-summaries with its own hotkey and uploads directly to Hippius using its team's dedicated ACL credentials.
-Each validator's private outbox keeps its original signed bytes and retry state across restarts. Its ledger
-must remain available even after reports are uploaded. Production validators run independently on separate
-operator machines. SQLite is never shared between validators or queried by the combined leaderboard.
-See [score reporting](score-reporting.md) for configuration and storage ownership.
-
-Dedicated ACL user tokens were confirmed with the Hippius team. The three test tokens have bucket-wide
-WRITE access to `localnet`. Put their named profiles in the private, Git-ignored
-`localnet/hippius-credentials.json`, following the
-[example format](../localnet/hippius-credentials.example.json). GET/LIST checks have passed for all three
-profiles; the user approved `owner` for the third test validator. Use
-`VALIDATOR_REPORTS_BACKEND=hippius` for real integration tests. The explicit `gateway` backend is only for
-development transport tests. Each destination has separate delivery status, so a gateway receipt never
-satisfies Hippius delivery. WRITE-only tokens acknowledge uploads; a reader with READ permission verifies
-stored signatures later. Three live localnet validators have passed real bucket readback and independent
-chain-weight checks; see the [verification results](localnet-implementation.md#three-validator-hippius-verification--2026-09-16).
-
-## Observability
-
-Structured logs and OpenTelemetry lifecycle counters and operation-duration histograms cover evaluation and weight attempts. Tracing exports only when configured. No metrics exporter or external telemetry service is required by the local harness. Deadlines are checked when the observation actor processes a response, so processing delay is included.
-
-Reporting adds `validity.report.events` and `validity.report.operation.duration`, with upload, read and
-publisher outcomes. Publisher logs include report identifiers and error types, without storage secrets or
-private key material. No metrics exporter is enabled by the reporting service by default.
-
-## Quality checks
-
-Inside `validator/`:
-
-```sh
-uv run --frozen ruff check
-uv run --frozen ruff format --check
+uv run --frozen ruff check --fix
+uv run --frozen ruff format
 uv run --frozen basedpyright
 uv run --frozen pytest -q --tb=line -r f
 ```
 
-## Deployment status
-
-This is a fictional-source local MVP. Public-network authentication, real nursing-source adapters and production reward policy remain to be qualified. The retained [installer](../installer/README.md) is not a production release; its image digest is still a placeholder.
+Tests exercise signatures, replay and identity binding, mutual TLS, public-address filtering, upload isolation and durable recovery. They use isolated test doubles; live Hippius acceptance must use real storage.

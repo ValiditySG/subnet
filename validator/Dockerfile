@@ -1,8 +1,8 @@
-ARG BASE_IMAGE=python:3.14-slim
+ARG BASE_IMAGE=python@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
 
 FROM $BASE_IMAGE AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv@sha256:e49fde5daf002023f0a2e2643861ce9ca8a8da5b73d0e6db83ef82ff99969baf /uv /uvx /bin/
 
 WORKDIR /build
 
@@ -16,13 +16,11 @@ RUN apt-get update \
 
 COPY pyproject.toml uv.lock ./
 
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev --no-editable
+RUN uv sync --frozen --no-install-project --no-dev --no-editable
 
 COPY src/ ./src/
 
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable
+RUN uv sync --frozen --no-dev --no-editable
 
 
 FROM $BASE_IMAGE AS runtime
@@ -31,5 +29,12 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY --from=builder /opt/venv /opt/venv
+
+RUN groupadd --gid 10001 validity \
+    && useradd --uid 10001 --gid 10001 --no-create-home validity \
+    && mkdir -p /var/lib/validity \
+    && chown validity:validity /var/lib/validity
+USER 10001:10001
+WORKDIR /var/lib/validity
 
 CMD ["validator"]

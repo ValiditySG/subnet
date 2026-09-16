@@ -1,0 +1,153 @@
+{
+  "$defs": {
+    "ChainId": {
+      "pattern": "^0x[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "CredentialRequest": {
+      "additionalProperties": false,
+      "description": "One local license lookup with an absolute UTC deadline.",
+      "properties": {
+        "protocol_version": {
+          "const": "validity.synthetic-rn.v1",
+          "default": "validity.synthetic-rn.v1",
+          "title": "Protocol Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "provider_query": {
+          "$ref": "#/$defs/ProviderQuery"
+        },
+        "checks": {
+          "items": {
+            "const": "fixture_license",
+            "type": "string"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Checks",
+          "type": "array"
+        },
+        "issued_at": {
+          "format": "date-time",
+          "title": "Issued At",
+          "type": "string"
+        },
+        "deadline_at": {
+          "format": "date-time",
+          "title": "Deadline At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "provider_query",
+        "checks",
+        "issued_at",
+        "deadline_at"
+      ],
+      "title": "CredentialRequest",
+      "type": "object"
+    },
+    "HotkeyAddress": {
+      "maxLength": 48,
+      "minLength": 47,
+      "type": "string"
+    },
+    "ProviderQuery": {
+      "additionalProperties": false,
+      "description": "Fictional identifiers that cannot be mistaken for a supported real board.",
+      "properties": {
+        "provider_ref": {
+          "pattern": "^fictional-[0-9]+$",
+          "title": "Provider Ref",
+          "type": "string"
+        },
+        "profession": {
+          "const": "RN",
+          "title": "Profession",
+          "type": "string"
+        },
+        "license_number": {
+          "pattern": "^TEST-[0-9]+$",
+          "title": "License Number",
+          "type": "string"
+        },
+        "jurisdiction": {
+          "const": "ZZ-TEST",
+          "default": "ZZ-TEST",
+          "title": "Jurisdiction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_ref",
+        "profession",
+        "license_number"
+      ],
+      "title": "ProviderQuery",
+      "type": "object"
+    },
+    "TaskBinding": {
+      "additionalProperties": false,
+      "description": "Bind the assignment to a chain and both participant hotkeys.",
+      "properties": {
+        "version": {
+          "const": "validity.rn-exchange.v1",
+          "default": "validity.rn-exchange.v1",
+          "title": "Version",
+          "type": "string"
+        },
+        "chain_genesis": {
+          "$ref": "#/$defs/ChainId"
+        },
+        "netuid": {
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Netuid",
+          "type": "integer"
+        },
+        "validator_hotkey": {
+          "$ref": "#/$defs/HotkeyAddress"
+        },
+        "miner_hotkey": {
+          "$ref": "#/$defs/HotkeyAddress"
+        },
+        "request": {
+          "$ref": "#/$defs/CredentialRequest"
+        }
+      },
+      "required": [
+        "chain_genesis",
+        "netuid",
+        "validator_hotkey",
+        "miner_hotkey",
+        "request"
+      ],
+      "title": "TaskBinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The validator signature authenticates the complete assignment.",
+  "properties": {
+    "task": {
+      "$ref": "#/$defs/TaskBinding"
+    },
+    "signature": {
+      "pattern": "^[0-9a-f]{128}$",
+      "title": "Signature",
+      "type": "string"
+    }
+  },
+  "required": [
+    "task",
+    "signature"
+  ],
+  "title": "SignedRequest",
+  "type": "object"
+}

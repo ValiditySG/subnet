@@ -54,7 +54,7 @@
     },
     "ScoreReport": {
       "additionalProperties": false,
-      "description": "One completed local RN round, grouped by chain epoch and evaluation context.",
+      "description": "One completed synthetic RN round, grouped by chain epoch and evaluation context.",
       "properties": {
         "schema_version": {
           "const": "validity.score-report.v1",
@@ -63,8 +63,8 @@
           "type": "string"
         },
         "scope": {
-          "const": "localnet-fixture",
-          "default": "localnet-fixture",
+          "const": "synthetic-rn",
+          "default": "synthetic-rn",
           "title": "Scope",
           "type": "string"
         },

@@ -1,89 +1,20 @@
 #!/usr/bin/env bash
-# Pulls the latest envs/deployed/docker-compose.yml and the Alloy traces config
-# from the deploy-config-${ENV_NAME} branch and restarts the Validity
-# validator stack if anything changed.
-
+# Apply a reviewed, digest-pinned release. No remote script execution or unattended updates.
 set -euo pipefail
-
-# ENV_NAME is both the deploy-config branch suffix (deploy-config-${ENV_NAME}) and the
-# OpenTelemetry deployment.environment.name attribute backfilled into .env below.
-ENV_NAME="${1:-production}"
-WORKING_DIRECTORY="${2:-$HOME/validity-validator/}"
-
-mkdir -p "${WORKING_DIRECTORY}"
-cd "${WORKING_DIRECTORY}"
-
-ENV_FILE="${WORKING_DIRECTORY}/.env"
-if [ -f "${ENV_FILE}" ] && ! grep -q '^ENVIRONMENT=' "${ENV_FILE}"; then
-    echo "ENVIRONMENT=${ENV_NAME}" >> "${ENV_FILE}"
-fi
-
-GITHUB_URL="https://raw.githubusercontent.com/ValiditySG/subnet/refs/heads"
-BRANCH_URL="${GITHUB_URL}/deploy-config-${ENV_NAME}"
-
-UPDATED=false
-
-TEMP_FILES=()
-cleanup() {
-    if [ "${#TEMP_FILES[@]}" -gt 0 ]; then
-        rm -f "${TEMP_FILES[@]}"
-    fi
-}
-trap cleanup EXIT
-
-# fetch_file <remote-path> <temp-file>: all downloads must succeed before any
-# local files are replaced, so fetching and applying are kept separate.
-fetch_file() {
-    local remote_path="$1"
-    local temp_file="$2"
-    if ! curl -fsSL "${BRANCH_URL}/${remote_path}" > "${temp_file}"; then
-        echo "Error: failed to fetch ${remote_path}. Aborting update."
-        return 1
-    fi
-}
-
-# apply_file <temp-file> <local-path>: replace the local copy and flag an update if it changed.
-apply_file() {
-    local temp_file="$1"
-    local local_path="$2"
-    mkdir -p "$(dirname "${local_path}")"
-    if [ ! -f "${local_path}" ]; then
-        echo "Local ${local_path} does not exist. Creating it."
-        cat "${temp_file}" > "${local_path}"
-        UPDATED=true
-    elif diff -q "${temp_file}" "${local_path}" > /dev/null; then
-        echo "No changes detected in ${local_path}"
-    else
-        echo "Changes detected in ${local_path}. Updating..."
-        cat "${temp_file}" > "${local_path}"
-        UPDATED=true
-    fi
-}
-
-COMPOSE_TEMP="$(mktemp "${TMPDIR:-/tmp}/validity_update.XXXXXX")"
-TEMP_FILES+=("${COMPOSE_TEMP}")
-ALLOY_TEMP="$(mktemp "${TMPDIR:-/tmp}/validity_update.XXXXXX")"
-TEMP_FILES+=("${ALLOY_TEMP}")
-
-fetch_file "envs/deployed/docker-compose.yml" "${COMPOSE_TEMP}"
-fetch_file "envs/deployed/alloy/config.alloy" "${ALLOY_TEMP}"
-
-apply_file "${COMPOSE_TEMP}" "${WORKING_DIRECTORY}/docker-compose.yml"
-apply_file "${ALLOY_TEMP}" "${WORKING_DIRECTORY}/alloy/config.alloy"
-
-if [ "${UPDATED}" = true ]; then
-    echo "Updating services..."
-
-    if command -v docker &> /dev/null && docker compose version &> /dev/null; then
-        docker compose up -d --remove-orphans
-    elif command -v docker-compose &> /dev/null; then
-        docker-compose up -d --remove-orphans
-    else
-        echo "Error: Neither docker compose nor docker-compose is available."
-        exit 1
-    fi
-
-    echo "Services updated successfully."
-fi
-
-echo "Update process completed."
+VALIDITY_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+cd "${VALIDITY_ROOT}/envs/deployed"
+python3 - <<'PYENV'
+import re
+from pathlib import Path
+path = Path('.env')
+if path.stat().st_mode & 0o077:
+    raise SystemExit('.env must have mode 0600')
+entries = dict(line.split('=', 1) for line in path.read_text().splitlines() if line and not line.startswith('#') and '=' in line)
+if not re.fullmatch(r'[^\s]+@sha256:[0-9a-f]{64}', entries.get('VALIDATOR_IMAGE', '')):
+    raise SystemExit('VALIDATOR_IMAGE must reference a registry image by sha256 digest')
+PYENV
+docker compose config --quiet
+docker compose pull pylon validator preflight
+docker compose up -d pylon
+docker compose run --rm --no-deps preflight
+docker compose up -d validator

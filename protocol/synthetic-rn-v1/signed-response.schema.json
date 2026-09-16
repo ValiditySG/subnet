@@ -7,6 +7,24 @@
       ],
       "type": "string"
     },
+    "BoundResponse": {
+      "additionalProperties": false,
+      "description": "The request hash prevents reuse across tasks, validators, subnets and chains.",
+      "properties": {
+        "request_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "response": {
+          "$ref": "#/$defs/CredentialResponse"
+        }
+      },
+      "required": [
+        "request_hash",
+        "response"
+      ],
+      "title": "BoundResponse",
+      "type": "object"
+    },
     "CheckResult": {
       "additionalProperties": false,
       "description": "Availability is separate from the license finding.",
@@ -47,6 +65,48 @@
         "evidence"
       ],
       "title": "CheckResult",
+      "type": "object"
+    },
+    "CredentialResponse": {
+      "additionalProperties": false,
+      "description": "Untrusted miner output; request binding and truth are checked separately.",
+      "properties": {
+        "protocol_version": {
+          "const": "validity.synthetic-rn.v1",
+          "default": "validity.synthetic-rn.v1",
+          "title": "Protocol Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "provider_ref": {
+          "pattern": "^fictional-[0-9]+$",
+          "title": "Provider Ref",
+          "type": "string"
+        },
+        "identity_resolution": {
+          "$ref": "#/$defs/Identity"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/CheckResult"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Checks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "task_id",
+        "provider_ref",
+        "identity_resolution",
+        "checks"
+      ],
+      "title": "CredentialResponse",
       "type": "object"
     },
     "Digest": {
@@ -113,44 +173,21 @@
     }
   },
   "additionalProperties": false,
-  "description": "Untrusted miner output; request binding and truth are checked separately.",
+  "description": "The miner signs its result, including the complete assignment's digest.",
   "properties": {
-    "protocol_version": {
-      "const": "validity.localnet.v1",
-      "default": "validity.localnet.v1",
-      "title": "Protocol Version",
+    "result": {
+      "$ref": "#/$defs/BoundResponse"
+    },
+    "signature": {
+      "pattern": "^[0-9a-f]{128}$",
+      "title": "Signature",
       "type": "string"
-    },
-    "task_id": {
-      "format": "uuid",
-      "title": "Task Id",
-      "type": "string"
-    },
-    "provider_ref": {
-      "pattern": "^fictional-[0-9]+$",
-      "title": "Provider Ref",
-      "type": "string"
-    },
-    "identity_resolution": {
-      "$ref": "#/$defs/Identity"
-    },
-    "checks": {
-      "items": {
-        "$ref": "#/$defs/CheckResult"
-      },
-      "maxItems": 1,
-      "minItems": 1,
-      "title": "Checks",
-      "type": "array"
     }
   },
   "required": [
-    "task_id",
-    "provider_ref",
-    "identity_resolution",
-    "checks"
+    "result",
+    "signature"
   ],
-  "title": "CredentialResponse",
-  "type": "object",
-  "$schema": "https://json-schema.org/draft/2020-12/schema"
+  "title": "SignedResponse",
+  "type": "object"
 }

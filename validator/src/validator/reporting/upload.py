@@ -6,8 +6,6 @@ from datetime import UTC, datetime
 from time import perf_counter
 from typing import Protocol
 
-import httpx
-
 from validator.reporting.protocol import MAX_REPORT_BYTES, SignedScoreReport, UploadReceipt
 from validator.reporting.service import duration, events
 from validator.reporting.snapshot import check_replacement
@@ -74,23 +72,3 @@ class HippiusUploader:
 
     def close(self) -> None:
         self.store.client.close()
-
-
-class GatewayUploader:
-    """Explicit development transport retained for local harness tests only."""
-
-    def __init__(self, client: httpx.Client, gateway_url: str) -> None:
-        self.client = client
-        self.url = f"{gateway_url.rstrip('/')}/v1/reports"
-
-    def upload(self, signed: SignedScoreReport) -> UploadReceipt:
-        response = self.client.post(
-            self.url,
-            content=signed.model_dump_json(),
-            headers={"Content-Type": "application/json"},
-        )
-        response.raise_for_status()
-        return UploadReceipt.model_validate_json(response.content)
-
-    def close(self) -> None:
-        self.client.close()

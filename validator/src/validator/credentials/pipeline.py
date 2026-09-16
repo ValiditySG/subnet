@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from ipaddress import IPv4Address
 from pathlib import Path
 from time import perf_counter
 from typing import Any, override
 
+from bittensor_wallet import Wallet
 from nexus.v1 import (
     Actor,
     ActorBuilder,
@@ -17,7 +17,6 @@ from nexus.v1 import (
     ConsumerActor,
     Context,
     ContextStore,
-    EnvPylonClientProvider,
     EventHandler,
     ExecutorFailureException,
     Hotkey,
@@ -53,10 +52,14 @@ from nexus.v1 import (
 )
 from opentelemetry import metrics
 
+from validator.chain import registered_neurons
+from validator.config import Settings
 from validator.credentials.evaluation import EvaluationLedger
 from validator.credentials.fixtures import FixtureCatalog, rejection_reason
 from validator.credentials.ledger import Outcome
 from validator.credentials.protocol import CredentialRequest, CredentialResponse
+from validator.reporting.journal import ReportJournal
+from validator.reporting.publisher import ReportingSettings
 
 logger = get_logger(__name__)
 meter = metrics.get_meter("validity.credentials")
@@ -64,13 +67,14 @@ events = meter.create_counter("validity.credential.events", description="RN eval
 duration = meter.create_histogram("validity.credential.operation.duration", unit="s")
 
 
-def local_http_neurons(neurons: Sequence[Neuron]) -> Sequence[Neuron]:
-    """Select serving local HTTP endpoints, including fixtures that gain a permit."""
+def public_http_neurons(neurons: Sequence[Neuron]) -> Sequence[Neuron]:
+    """Select public HTTP-protocol axons; HTTPS and signatures are enforced by transport."""
     return [
         neuron
         for neuron in neurons
         if neuron.axon_info.protocol == AxonProtocol.HTTP
-        and neuron.axon_info.ip == IPv4Address("127.0.0.2")
+        and neuron.axon_info.ip.is_global
+        and not neuron.axon_info.ip.is_multicast
         and neuron.axon_info.port > 0
     ]
 
@@ -108,6 +112,7 @@ class EvaluationLoop(Node, ActorBuilder):
         max_in_flight: int,
         max_score_age: timedelta,
         tempo: int = 360,
+        settings: Settings | None = None,
     ) -> None:
         super().__init__("credential-evaluation")
         self.ledger = ledger
@@ -117,7 +122,8 @@ class EvaluationLoop(Node, ActorBuilder):
         self.max_in_flight = max_in_flight
         self.max_score_age = max_score_age
         self.tempo = tempo
-        self.provider = EnvPylonClientProvider()
+        self.settings = settings
+        self.hotkey: str | None = None
         self.tick = Sink[BlockBeat](f"{self.id}-tick", owner_node=self)
         self.weight_tick = Sink[SetWeightsBeat](f"{self.id}-weight-tick", owner_node=self)
         self.queued = Sink[WeightSettingSuccess](f"{self.id}-queued", owner_node=self)
@@ -150,10 +156,17 @@ class EvaluationLoop(Node, ActorBuilder):
         return EvaluationActor(self, pipe_to_bus, context_store)
 
     def neurons(self) -> dict[str, Neuron]:
-        """Recheck current hotkey/UID bindings through the chain sidecar."""
-        with self.provider.get_client() as client:
-            response = client.open_access.get_recent_neurons(NetUid(self.netuid))
-        return {str(neuron.hotkey): neuron for neuron in local_http_neurons(list(response.neurons.values()))}
+        """Recheck current hotkey/UID bindings through the chain sidecar.
+
+        Raises:
+            ValueError: If the validator identity has not initialized.
+        """
+        if self.hotkey is None:
+            raise ValueError("Validator identity is not initialized")
+        neurons = registered_neurons(self.netuid, self.hotkey)
+        return {
+            str(neuron.hotkey): neuron for neuron in public_http_neurons(neurons) if str(neuron.hotkey) != self.hotkey
+        }
 
     def weigh(self, bundle: WeightsCalculationBundle) -> dict[Hotkey, Weight]:
         """Load the persisted proposal again inside the weight setter actor.
@@ -188,6 +201,17 @@ class EvaluationActor(Actor):
     @override
     def on_start(self) -> None:
         self.node.ledger.initialize_evaluation()
+        settings = self.node.settings
+        if settings is None:
+            raise ValueError("Operator settings are required")
+        key = Wallet(
+            path=str(settings.wallet_path), name=settings.wallet_name, hotkey=settings.hotkey_name
+        ).get_hotkey()
+        reporting = ReportingSettings.model_validate({})
+        ReportJournal(
+            self.node.ledger.path, settings.chain_genesis, self.node.netuid, key, reporting.destination
+        ).initialize()
+        self.node.hotkey = key.ss58_address
         recovered = self.node.ledger.recover(datetime.now(UTC))
         events.add(recovered, {"stage": "interrupted"})
         logger.info("RN evaluation ready: recovered=%s", recovered)
@@ -208,6 +232,7 @@ class EvaluationActor(Actor):
             neurons = self.node.neurons()
             roster = {hotkey: int(neuron.uid) for hotkey, neuron in neurons.items()}
             catalog = FixtureCatalog.load(self.node.fixture_dir)
+            self.node.ledger.path.with_suffix(".heartbeat").touch(mode=0o600)
             if event.target == self.node.tick:
                 block_beat: BlockBeat = event.payload
                 epoch = get_epoch_containing_block(

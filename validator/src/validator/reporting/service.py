@@ -27,7 +27,7 @@ class ReportPage(WireModel):
 
 
 class ScoreService:
-    """Localnet admission uses an explicit operator-managed validator hotkey allowlist."""
+    """Pilot admission uses an explicit operator-managed validator hotkey allowlist."""
 
     def __init__(self, store: ReportStore, chain_genesis: str, netuid: int, validators: frozenset[str]) -> None:
         self.store = store
