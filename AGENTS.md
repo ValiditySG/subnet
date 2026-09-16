@@ -7,6 +7,33 @@ commercial validation. The user's localnet-first direction is authoritative.
 Validity's local MVP runs RN evaluation across eight fixture profiles, persists complete rounds and scores,
 submits weight batches and verifies them directly on the chain. Real-source adapters and agency workflows follow. Read `subnet_design.md` and `localnet/README.md` first.
 
+Score reports are signed by validator hotkeys and published directly to Hippius by an independent actor with
+a private SQLite outbox. The user confirmed dedicated ACL user tokens per validator team with Hippius and
+has generated three test credentials. Each validator uses its own team's credential profile; no shared
+upload service is required. Readers verify report signatures, content hashes and expected hotkeys.
+Weights remain on chain. The user confirmed bucket `localnet`, bucket-wide WRITE access for each token,
+and the private file `localnet/hippius-credentials.json` (ignored by Git). JSON and AWS INI profiles are
+supported; the example JSON contains the three test profile names. Do not infer prefix isolation from
+distinct tokens. GET/LIST checks passed with all three profiles. The user approved `owner` for test
+validator 3; `validator-1` and `validator-2` serve the other two. Retention is unconfirmed. WRITE-only
+tokens support upload acceptance; verified readback requires READ permission or a separate reader.
+See `docs/score-reporting.md`.
+Do not claim storage-chain finality from an S3 PUT. The HTTP upload gateway remains a development harness only.
+Production validators run independently on separate operator machines. Multiple identities on one machine
+are only a development test arrangement, with one private recovery journal per validator. SQLite must never
+be shared across validators or used as the combined leaderboard's report store. Hippius integration tests
+must use actual Hippius storage for shared reports, with no local object-store substitute or fallback.
+Keep the local JSON backend confined to development harness and automated transport tests.
+Delivery acknowledgements are scoped by destination, so local-test receipts never count as Hippius uploads.
+The localnet now has three running validators (chain UIDs 1, 10 and 11); their weight rows and three
+Hippius signatures in one window have passed independent readback. Additional sidecars are defined in
+`localnet/compose.hippius.yml`; the Hippius reader uses port 8091. Current report publication takes priority
+over historical backfill. The user requested a simple bucket layout: `<validator-hotkey>/<epoch-start>.json`,
+one signed snapshot containing all miners from the latest completed round in that epoch. No extra
+chain/subnet/report-ID directories. Chain, subnet, source and report hash remain inside the signed JSON.
+Superseded snapshots stay in the private journal and cannot overwrite a newer epoch file on retry.
+Use a dedicated bucket per network/subnet. See `docs/localnet-implementation.md` for measured results.
+
 ## Repository layout
 
 This is a monorepo with two **independent** uv projects plus shared local-development tooling:
@@ -23,6 +50,7 @@ This is a monorepo with two **independent** uv projects plus shared local-develo
 - `.github/workflows/` — Copier-rendered CI; `build-validator.yml` builds and pushes the validator
   image to a registry on push to `deploy-build-*` branches
 - `protocol/localnet-v1/` — local RN request/response JSON schemas and semantics
+- `protocol/score-reports-v1/` — signed score summary schema and transport contract
 - `knowledge/` — Bittensor, validator runtime, and localnet domain knowledge
 - `docs/` — validator and miner guides (`validator.md`, `miner.md`) and implementation reports
 

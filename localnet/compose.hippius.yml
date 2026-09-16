@@ -1,0 +1,30 @@
+# Additional sidecars for the same-host, three-validator Hippius test.
+# Combine with compose.yml; start only pylon-2 and pylon-3 to preserve the existing chain.
+services:
+  pylon-2:
+    image: backenddevelopersltd/bittensor-pylon:2.1.0
+    ports:
+      - "127.0.0.1:8010:8000"
+    environment: &test-sidecar
+      PYLON_BITTENSOR_NETWORK: "ws://subtensor:9944"
+      PYLON_OPEN_ACCESS_TOKEN: "${VALIDATOR_PYLON_OPEN_ACCESS_TOKEN:?}"
+      PYLON_IDENTITIES: '["validator"]'
+      PYLON_BITTENSOR_WALLET_PATH: "/wallets"
+      PYLON_TEMPO: "${SUBNET_TEMPO:?}"
+      PYLON_ID_VALIDATOR_WALLET_NAME: "validator-2"
+      PYLON_ID_VALIDATOR_HOTKEY_NAME: "default"
+      PYLON_ID_VALIDATOR_NETUID: "${NETUID:?}"
+      PYLON_ID_VALIDATOR_TOKEN: "${VALIDATOR_PYLON_IDENTITY_TOKEN:?}"
+      PYLON_BLOCK_DURATION_SECONDS: "0.25"
+    volumes:
+      - ./wallets:/wallets:ro
+
+  pylon-3:
+    image: backenddevelopersltd/bittensor-pylon:2.1.0
+    ports:
+      - "127.0.0.1:8020:8000"
+    environment:
+      <<: *test-sidecar
+      PYLON_ID_VALIDATOR_WALLET_NAME: "validator-3"
+    volumes:
+      - ./wallets:/wallets:ro

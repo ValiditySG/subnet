@@ -3,6 +3,7 @@
 # dependencies = [
 #     "bittensor",
 #     "bittensor-wallet",
+#     "click",
 #     "python-dotenv",
 # ]
 # ///
@@ -31,7 +32,7 @@ import time
 from pathlib import Path
 
 import bittensor as bt
-from bittensor.core.extrinsics.pallets import Sudo
+import click
 from bittensor.utils.balance import Balance
 from bittensor_wallet import Keypair, Wallet
 from dotenv import load_dotenv
@@ -83,7 +84,10 @@ def get_alice_wallet() -> Wallet:
 def get_or_create_wallet(name: str) -> Wallet:
     """Create a wallet if it doesn't exist, using localnet wallets directory."""
     wallet = Wallet(name=name, path=str(WALLETS_DIR))
-    wallet.create_if_non_existent(coldkey_use_password=False, hotkey_use_password=False)
+    if not wallet.coldkey_file.exists_on_device():
+        wallet.create_new_coldkey(use_password=False, suppress=True)
+    if not wallet.hotkey_file.exists_on_device():
+        wallet.create_new_hotkey(use_password=False, suppress=True)
     return wallet
 
 
@@ -116,7 +120,8 @@ def get_subnet_owner_coldkey(subtensor: bt.Subtensor, netuid: int) -> str | None
     """
     if not subtensor.subnet_exists(netuid=netuid):
         return None
-    return subtensor.subnet(netuid=netuid).owner_coldkey
+    subnet = subtensor.subnet(netuid=netuid)
+    return subnet.owner_coldkey if subnet is not None else None
 
 
 def create_subnet(subtensor: bt.Subtensor, owner: Wallet) -> int:
@@ -198,7 +203,7 @@ def set_admin_freeze_window(subtensor: bt.Subtensor, sudo: Wallet, window: int) 
         call_params={"window": window},
     )
     response = subtensor.sign_and_send_extrinsic(
-        call=Sudo(subtensor).sudo(inner),
+        call=subtensor.compose_call("Sudo", "sudo", {"call": inner}),
         wallet=sudo,
         wait_for_inclusion=True,
         wait_for_finalization=True,
@@ -214,8 +219,15 @@ def set_admin_freeze_window(subtensor: bt.Subtensor, sudo: Wallet, window: int) 
 
 
 def set_subnet_tempo(subtensor: bt.Subtensor, sudo: Wallet, netuid: int, tempo: int) -> None:
-    """Set subnet tempo via Sudo. Requires the root key — not callable by subnet owners. Idempotent."""
-    current = int(subtensor.get_hyperparameter("Tempo", netuid=netuid))
+    """Set subnet tempo via Sudo. Requires the local root key; idempotent.
+
+    Raises:
+        ValueError: If the chain does not return the subnet tempo.
+    """
+    current_value = subtensor.get_hyperparameter("Tempo", netuid=netuid)
+    if current_value is None:
+        raise ValueError("Subnet tempo is unavailable")
+    current = int(current_value)
     if current == tempo:
         print(f"  tempo already {tempo}")
         return
@@ -226,7 +238,7 @@ def set_subnet_tempo(subtensor: bt.Subtensor, sudo: Wallet, netuid: int, tempo: 
         call_params={"netuid": netuid, "tempo": tempo},
     )
     response = subtensor.sign_and_send_extrinsic(
-        call=Sudo(subtensor).sudo(inner),
+        call=subtensor.compose_call("Sudo", "sudo", {"call": inner}),
         wallet=sudo,
         wait_for_inclusion=True,
         wait_for_finalization=True,
@@ -234,7 +246,10 @@ def set_subnet_tempo(subtensor: bt.Subtensor, sudo: Wallet, netuid: int, tempo: 
     if not response.success:
         print(f"  set_tempo failed: {response.message}")
         sys.exit(1)
-    new_val = int(subtensor.get_hyperparameter("Tempo", netuid=netuid))
+    updated_value = subtensor.get_hyperparameter("Tempo", netuid=netuid)
+    if updated_value is None:
+        raise ValueError("Subnet tempo is unavailable after update")
+    new_val = int(updated_value)
     if new_val != tempo:
         print(f"  set_tempo failed: on-chain value is {new_val}, expected {tempo}")
         sys.exit(1)
@@ -321,7 +336,15 @@ def stake_validator(subtensor: bt.Subtensor, wallet: Wallet, netuid: int) -> Non
     print(f"  {wallet.name} staked")
 
 
-def main() -> None:
+@click.command()
+@click.option(
+    "--validator-wallet",
+    multiple=True,
+    default=("validator",),
+    type=click.Choice(["validator", "validator-2", "validator-3"]),
+)
+def main(validator_wallet: tuple[str, ...]) -> None:
+    """Prepare the local chain and the requested independent validator wallets."""
     subtensor = wait_for_subtensor(SUBTENSOR_NETWORK)
     alice = get_alice_wallet()
 
@@ -346,17 +369,17 @@ def main() -> None:
     print("\n--- Activating subnet ---")
     activate_subnet(subtensor, owner, netuid)
 
-    # Validator: registers and stakes
-    print("\n--- Setting up validator ---")
-    validator = get_or_create_wallet("validator")
-    fund_wallet(subtensor, alice, validator)
-    register_neuron(subtensor, validator, netuid)
-    stake_validator(subtensor, validator, netuid)
+    for name in validator_wallet:
+        print(f"\n--- Setting up {name} ---")
+        validator = get_or_create_wallet(name)
+        fund_wallet(subtensor, alice, validator)
+        register_neuron(subtensor, validator, netuid)
+        stake_validator(subtensor, validator, netuid)
+        print(f"Validator {name}: {validator.hotkey.ss58_address}")
 
     print("\n--- Bootstrap complete ---")
     print(f"Subnet:    {netuid}")
     print(f"Owner:     {owner.coldkey.ss58_address}")
-    print(f"Validator: {validator.hotkey.ss58_address}")
     print(
         "\nNext: start the miner (cd miner && uv run miner) or a localnet fixture (uv run localnet/miners/<profile>.py)"
     )

@@ -44,9 +44,11 @@ from nexus.v1 import (
     SinkName,
     Source,
     SourceName,
+    Tempo,
     Weight,
     WeightsCalculationBundle,
     WeightSettingSuccess,
+    get_epoch_containing_block,
     get_logger,
 )
 from opentelemetry import metrics
@@ -105,6 +107,7 @@ class EvaluationLoop(Node, ActorBuilder):
         timeout: timedelta,
         max_in_flight: int,
         max_score_age: timedelta,
+        tempo: int = 360,
     ) -> None:
         super().__init__("credential-evaluation")
         self.ledger = ledger
@@ -113,6 +116,7 @@ class EvaluationLoop(Node, ActorBuilder):
         self.timeout = timeout
         self.max_in_flight = max_in_flight
         self.max_score_age = max_score_age
+        self.tempo = tempo
         self.provider = EnvPylonClientProvider()
         self.tick = Sink[BlockBeat](f"{self.id}-tick", owner_node=self)
         self.weight_tick = Sink[SetWeightsBeat](f"{self.id}-weight-tick", owner_node=self)
@@ -205,8 +209,20 @@ class EvaluationActor(Actor):
             roster = {hotkey: int(neuron.uid) for hotkey, neuron in neurons.items()}
             catalog = FixtureCatalog.load(self.node.fixture_dir)
             if event.target == self.node.tick:
+                block_beat: BlockBeat = event.payload
+                epoch = get_epoch_containing_block(
+                    block_beat.block_number, NetUid(self.node.netuid), Tempo(self.node.tempo)
+                )
                 task = self.node.ledger.next_assignment(
-                    catalog, roster, self.node.netuid, now, self.node.timeout, self.node.max_in_flight
+                    catalog,
+                    roster,
+                    self.node.netuid,
+                    now,
+                    self.node.timeout,
+                    self.node.max_in_flight,
+                    completed_block=int(block_beat.block_number),
+                    epoch_start=int(epoch.first_block),
+                    epoch_end=int(epoch.last_block),
                 )
                 if task is None:
                     return ()

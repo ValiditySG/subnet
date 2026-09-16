@@ -109,6 +109,10 @@ class EvaluationLedger(CredentialLedger):
             columns = {row[1] for row in db.execute("PRAGMA table_info(weight_batches)")}
             if "prepared_block" not in columns:
                 db.execute("ALTER TABLE weight_batches ADD COLUMN prepared_block INTEGER NOT NULL DEFAULT 0")
+            round_columns = {row[1] for row in db.execute("PRAGMA table_info(rounds)")}
+            for column in ("completed_block", "epoch_start", "epoch_end"):
+                if column not in round_columns:
+                    db.execute(f"ALTER TABLE rounds ADD COLUMN {column} INTEGER")
 
     def next_assignment(
         self,
@@ -118,6 +122,10 @@ class EvaluationLedger(CredentialLedger):
         now: datetime,
         timeout: timedelta,
         max_in_flight: int,
+        *,
+        completed_block: int | None = None,
+        epoch_start: int | None = None,
+        epoch_end: int | None = None,
     ) -> Assignment | None:
         """Reserve one slot atomically; retry interrupted work with a fresh task ID."""
         if not roster:
@@ -164,8 +172,16 @@ class EvaluationLedger(CredentialLedger):
                     )
                     scores[hotkey] += score / len(catalog.cases)
                 db.execute(
-                    "UPDATE rounds SET status='complete',closed_at=?,scores_json=? WHERE id=?",
-                    (now.isoformat(), json.dumps(scores, sort_keys=True), round_id),
+                    "UPDATE rounds SET status='complete',closed_at=?,scores_json=?,"
+                    "completed_block=?,epoch_start=?,epoch_end=? WHERE id=?",
+                    (
+                        now.isoformat(),
+                        json.dumps(scores, sort_keys=True),
+                        completed_block,
+                        epoch_start,
+                        epoch_end,
+                        round_id,
+                    ),
                 )
                 return None
             pending = db.execute("SELECT count(*) FROM assignments WHERE outcome IS NULL").fetchone()[0]

@@ -2,6 +2,10 @@
 
 A real local chain, eight fictional RN miner profiles, and the Validity validator exercise assignment, evidence verification, scoring, weight submission and recovery. The target product is RN verification for travel nursing agencies; agency workflows follow the subnet loop.
 
+This is a development test environment. Production validators run independently on separate operator
+machines. Any same-machine multi-validator tests use isolated recovery journals. Shared score storage for
+Hippius integration testing and production is Hippius; the local JSON object store is only a test substitute.
+
 ## Start
 
 Requires Docker with Compose v2, uv, Python 3.14 and tmux. From the subnet repository root:
@@ -42,6 +46,17 @@ The v2 source changes active/suspended findings, restores an unavailable lookup 
 
 ## Verify restart recovery
 
+For signed score uploads and per-validator report reads, use the [score reporting guide](../docs/score-reporting.md).
+The development harness can use a local object store. Direct Hippius testing uses a dedicated ACL credential
+profile for each validator and actual Hippius storage. Reporting has its own retry actor and does not gate
+chain weights.
+
+The three-validator Hippius test is documented in the
+[score reporting guide](../docs/score-reporting.md#three-validators-on-the-test-host). It adds separate
+sidecars on ports 8010/8020 and callbacks on 8002/8003. The independent Hippius reader runs on port 8091;
+the verified chain rows and signed reports are recorded in the
+[implementation report](../docs/localnet-implementation.md#three-validator-hippius-verification--2026-09-16).
+
 While the loop is running:
 
 ```sh
@@ -75,6 +90,8 @@ This stops the miner, waits for a newly assigned task to fail, restarts and chec
 `localnet/.env` is copied from `.env.example` on first startup. Paths resolve from `validator/`. Keep netuid 2 and the same tempo across chain, sidecar and validator. Default task deadline: ten seconds; maximum outstanding tasks: four; maximum eligible score age: ten minutes.
 
 - `state/credentials.sqlite3`: original assignments, round slots, frozen scores and weight batches.
+- Optional reporting adds signed envelopes, identity binding and upload retries to the same ledger.
+- `state/score-objects/`: local test objects; `state/score-service.env`: local score service configuration.
 - `state/baseline.json`, `transition.json`, `recovery.json`: direct-chain acceptance reports.
 - `state/restart-report.json`: process-recovery observations.
 - `logs/validator.log`, `logs/miner.log`, `logs/miner-<profile>.log`: current process output.
@@ -93,10 +110,22 @@ tmux kill-session -t localnet
 localnet/run-in-tmux.sh
 ```
 
+If score reporting is enabled, also restart its separately launched service using the
+[reporting guide](../docs/score-reporting.md#local-setup).
+For the three-validator Hippius test, relaunch validators 2 and 3 with their private environment files and
+the Hippius reader as described in the [three-validator setup](../docs/score-reporting.md#three-validators-on-the-test-host).
+
 Stop the environment:
 
 ```sh
 localnet/stop-tmux.sh
+```
+
+When the optional Hippius sidecars are running, stop them before the command above:
+
+```sh
+docker compose -f localnet/compose.yml -f localnet/compose.hippius.yml \
+  --env-file localnet/.env stop pylon-2 pylon-3
 ```
 
 Stopping also removes the chain container. It has no persistent chain volume. Archive `localnet/state/` before starting a fresh chain so scores and epoch receipts from different chain runs cannot mix. Wallet files survive and will be registered again.

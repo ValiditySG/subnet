@@ -7,6 +7,8 @@ __pycache__/
 !.env.example
 localnet/logs/
 localnet/state/
+# Per-validator Hippius ACL secrets; never stage or commit this file.
+localnet/hippius-credentials.json
 .pytest_cache/
 .ruff_cache/
 

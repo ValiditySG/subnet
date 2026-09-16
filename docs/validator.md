@@ -50,9 +50,33 @@ uv run --frozen --project validator python -m validator.credentials.audit localn
 
 Run that command from the repository root and replace `1` with a completed round ID. A changed score summary, incomplete round or inconsistent assignment fails replay.
 
+## Signed score publication
+
+Optional reporting runs independently of evaluation and weight setting. Each validator signs completed-round
+summaries with its own hotkey and uploads directly to Hippius using its team's dedicated ACL credentials.
+Each validator's private outbox keeps its original signed bytes and retry state across restarts. Its ledger
+must remain available even after reports are uploaded. Production validators run independently on separate
+operator machines. SQLite is never shared between validators or queried by the combined leaderboard.
+See [score reporting](score-reporting.md) for configuration and storage ownership.
+
+Dedicated ACL user tokens were confirmed with the Hippius team. The three test tokens have bucket-wide
+WRITE access to `localnet`. Put their named profiles in the private, Git-ignored
+`localnet/hippius-credentials.json`, following the
+[example format](../localnet/hippius-credentials.example.json). GET/LIST checks have passed for all three
+profiles; the user approved `owner` for the third test validator. Use
+`VALIDATOR_REPORTS_BACKEND=hippius` for real integration tests. The explicit `gateway` backend is only for
+development transport tests. Each destination has separate delivery status, so a gateway receipt never
+satisfies Hippius delivery. WRITE-only tokens acknowledge uploads; a reader with READ permission verifies
+stored signatures later. Three live localnet validators have passed real bucket readback and independent
+chain-weight checks; see the [verification results](localnet-implementation.md#three-validator-hippius-verification--2026-09-16).
+
 ## Observability
 
 Structured logs and OpenTelemetry lifecycle counters and operation-duration histograms cover evaluation and weight attempts. Tracing exports only when configured. No metrics exporter or external telemetry service is required by the local harness. Deadlines are checked when the observation actor processes a response, so processing delay is included.
+
+Reporting adds `validity.report.events` and `validity.report.operation.duration`, with upload, read and
+publisher outcomes. Publisher logs include report identifiers and error types, without storage secrets or
+private key material. No metrics exporter is enabled by the reporting service by default.
 
 ## Quality checks
 

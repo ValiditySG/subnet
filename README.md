@@ -14,6 +14,7 @@ The local MVP verifies fictional RN cases, scores miner responses, submits chain
 ## Documentation
 
 - [Validator guide](docs/validator.md) — setup, configuration, persistence, and checks.
+- [Score reporting](docs/score-reporting.md) — signed reports, local upload service and storage boundaries.
 - [Miner guide](docs/miner.md) — RN fixture, local operation, and protocol.
 - [Localnet guide](localnet/README.md) — start and verify the complete development environment.
 - [Subnet design](subnet_design.md) — current scope and implementation sequence.

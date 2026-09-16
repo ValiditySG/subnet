@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.14"
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-09-05T03:24:16.423335561Z"
 exclude-newer-span = "P11D"
 
 [[package]]
@@ -94,6 +94,19 @@ wheels = [
 ]
 
 [[package]]
+name = "bittensor-wallet"
+version = "4.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/69/8e5eb1131e3fb750ead1c1b1d2b628dede7b41edfad835cb78764dd88ceb/bittensor_wallet-4.0.1.tar.gz", hash = "sha256:edc2588d5e272835285e4171dd3daf862149f617015bf52e43d433d8e5c297c5", size = 83080, upload-time = "2025-10-28T20:19:33.679Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4b/ae/545cce71c0704cc371f454416a87c1d65ad71e1221b2ffe82344dbf90423/bittensor_wallet-4.0.1-cp314-cp314-macosx_10_12_x86_64.whl", hash = "sha256:e171c50bc043633b8404869145f1a1650854e976c1d5529cb4a5144512c46d40", size = 840046, upload-time = "2025-10-28T20:19:31.302Z" },
+    { url = "https://files.pythonhosted.org/packages/03/89/9a0856bf573039a47e36d3da3c3095e6fae828126d6e74e07d975810501b/bittensor_wallet-4.0.1-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:353d2dc2494e4a7f73cd0a0fef31ad74c58dea90bedc409c83f1b2e3824b8b7d", size = 779725, upload-time = "2025-10-28T20:19:23.289Z" },
+    { url = "https://files.pythonhosted.org/packages/f1/ca/5303187937db74416e748c7047ad30661e22be6783784b203ffaea01d62e/bittensor_wallet-4.0.1-cp314-cp314-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c5d11ed8ca48a4bf1d498561248777178bd851b9e3dca35662341c8dd160c8ea", size = 3001655, upload-time = "2025-10-28T20:18:56.826Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/5f/253128efc1acb8e42cdd64932dbf48bae5c54a6a0cf2dab38b48ebb0b908/bittensor_wallet-4.0.1-cp314-cp314-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:05409a6e0b676901d52fd50c51c00a6ab2966600b0de8b5bd606be592c5f1151", size = 3193818, upload-time = "2025-10-28T20:19:15.925Z" },
+    { url = "https://files.pythonhosted.org/packages/09/75/03d5f5d5de0cd12be4eaead90701a32838de1e51affdf7848841d2c009de/bittensor_wallet-4.0.1-cp314-cp314-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:4c63717b9c08db65a74b4e59aaff4bb9afbcaa8babdd865a16f7f4cc4c212534", size = 2986929, upload-time = "2025-10-28T20:19:06.618Z" },
+]
+
+[[package]]
 name = "boto3"
 version = "1.43.7"
 source = { registry = "https://pypi.org/simple" }
@@ -108,6 +121,24 @@ wheels = [
 ]
 
 [[package]]
+name = "boto3-stubs-lite"
+version = "1.43.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "botocore-stubs" },
+    { name = "types-s3transfer" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/89/31/0a27b5b4d40bccb59b6c494c467252de99e8792ba34753418dd5efef92e0/boto3_stubs_lite-1.43.7.tar.gz", hash = "sha256:9c6e9f242c2d8319bc070ba285913e87ecfbd5822e1a1f8cb81ca9af94144c37", size = 73769, upload-time = "2026-05-13T19:41:44.155Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/22/e3389e239761a08376c7e4c8a4887c6d278ce6a92e1462048f80fb176e52/boto3_stubs_lite-1.43.7-py3-none-any.whl", hash = "sha256:81b7f424b2b965f584085f76266ab9d9e90ee30fcced37ee520c0d1dd3b77866", size = 43164, upload-time = "2026-05-13T19:41:38.775Z" },
+]
+
+[package.optional-dependencies]
+s3 = [
+    { name = "mypy-boto3-s3" },
+]
+
+[[package]]
 name = "botocore"
 version = "1.43.7"
 source = { registry = "https://pypi.org/simple" }
@@ -119,6 +150,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ed/be/59144884fa71908e2ac389cfe0fd2ebe8e8adb47bcc994188eb59967406a/botocore-1.43.7.tar.gz", hash = "sha256:abbbc623c52dce86ea9d4534d35e2d6ce447d98edfdaced1695ee0278d6063e3", size = 15350131, upload-time = "2026-05-13T19:35:33.106Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/19/f3/a9beaae1cda959fa438b3937fc995d82b2a08cb117c67c31547580f19849/botocore-1.43.7-py3-none-any.whl", hash = "sha256:e93f25dc186a9de033c87128c0f2016aedd74aea9057d918bfc0703a946b1ad1", size = 15031637, upload-time = "2026-05-13T19:35:27.288Z" },
+]
+
+[[package]]
+name = "botocore-stubs"
+version = "1.43.67"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3f/45/53d662227dc4787b2c854445ee7eb4751cb5d74cfb5c686a6ecbe1f94c17/botocore_stubs-1.43.67.tar.gz", hash = "sha256:853e74014a1f557055c4ffae5fb38d7c65c7c0520e1aab366cac41d5428f419d", size = 42846, upload-time = "2026-08-08T14:57:53.412Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/5e/bdbf19967898a032292da65a47d6e25b2eee55865db4e687f861d80b5602/botocore_stubs-1.43.67-py3-none-any.whl", hash = "sha256:c51262bac3341c1cda71f05fa01141fffd3990d7a92c7960e3b755c1bc830373", size = 67244, upload-time = "2026-08-08T14:57:52.01Z" },
 ]
 
 [[package]]
@@ -525,6 +565,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8e/d6/9c4f366d6f9bb8f8fb5eae3acac471335c39510c42b537fd515213d7d8c3/multipart-1.3.1.tar.gz", hash = "sha256:211d7cfc1a7a43e75c4d24ee0e8e0f4f61d522f1a21575303ae85333dea687bf", size = 38929, upload-time = "2026-02-27T10:17:13.7Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/19/ed/e1f03200ee1f0bf4a2b9b72709afefbf5319b68df654e0b84b35c65613ee/multipart-1.3.1-py3-none-any.whl", hash = "sha256:a82b59e1befe74d3d30b3d3f70efd5a2eba4d938f845dcff9faace968888ff29", size = 15061, upload-time = "2026-02-27T10:17:11.943Z" },
+]
+
+[[package]]
+name = "mypy-boto3-s3"
+version = "1.43.66"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5f/b4/d9af4054a80a46e27bfec10ead824ac1d39a974179b47db4ad9844bc5658/mypy_boto3_s3-1.43.66.tar.gz", hash = "sha256:b2f74763e373b3f3d64cfcd2f00cdb1c10c8a4cefe6d4cdbc1ed4a6ade085c07", size = 78866, upload-time = "2026-08-07T00:17:38.354Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/73/bc/8ed7dad2bc1506732cc503ccbbc0fd48786d85900bb2c6577a26a634843b/mypy_boto3_s3-1.43.66-py3-none-any.whl", hash = "sha256:f9385e190d423690dbc161260dac02439e3b6c9841e992ba6a92d15c1050b3af", size = 86296, upload-time = "2026-08-07T00:17:36.388Z" },
 ]
 
 [[package]]
@@ -1009,6 +1058,15 @@ wheels = [
 ]
 
 [[package]]
+name = "types-s3transfer"
+version = "0.16.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/64/42689150509eb3e6e82b33ee3d89045de1592488842ddf23c56957786d05/types_s3transfer-0.16.0.tar.gz", hash = "sha256:b4636472024c5e2b62278c5b759661efeb52a81851cde5f092f24100b1ecb443", size = 13557, upload-time = "2025-12-08T08:13:09.928Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/98/27/e88220fe6274eccd3bdf95d9382918716d312f6f6cef6a46332d1ee2feff/types_s3transfer-0.16.0-py3-none-any.whl", hash = "sha256:1c0cd111ecf6e21437cb410f5cddb631bfb2263b77ad973e79b9c6d0cb24e0ef", size = 19247, upload-time = "2025-12-08T08:13:08.426Z" },
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1110,6 +1168,8 @@ source = { editable = "." }
 dependencies = [
     { name = "attrs" },
     { name = "bittensor-nexus-library" },
+    { name = "bittensor-wallet" },
+    { name = "boto3" },
     { name = "click" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
@@ -1125,6 +1185,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "basedpyright" },
+    { name = "boto3-stubs-lite", extra = ["s3"] },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -1133,6 +1194,8 @@ dev = [
 requires-dist = [
     { name = "attrs", specifier = ">=26.1.0" },
     { name = "bittensor-nexus-library", git = "https://github.com/bittensor-church/bittensor-nexus-library.git" },
+    { name = "bittensor-wallet", specifier = "==4.0.1" },
+    { name = "boto3", specifier = "==1.43.7" },
     { name = "click", specifier = ">=8.3.2" },
     { name = "opentelemetry-api", specifier = "~=1.41" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = "~=1.41" },
@@ -1148,6 +1211,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "basedpyright", specifier = ">=1.36.1" },
+    { name = "boto3-stubs-lite", extras = ["s3"], specifier = "==1.43.7" },
     { name = "pytest" },
     { name = "ruff" },
 ]

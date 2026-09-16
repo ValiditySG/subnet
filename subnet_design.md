@@ -16,6 +16,38 @@ The local MVP completes the subnet loop first. Agency rosters, reviews and alert
 
 Legacy conformance assignments stay in their original table and do not enter reward rounds. Each validator owns one SQLite database. Local chain resets require archiving the old evaluation state; identity continuity across independent chain runs is outside this harness.
 
+## Score publication
+
+Weights go to the chain; validators upload signed score summaries directly to a shared Hippius bucket.
+The Hippius team confirmed dedicated ACL user tokens per validator team, and the user generated three test
+credentials. Each validator holds its own team's upload credentials and signs reports with its own hotkey.
+ACL credentials authorize storage access; hotkey signatures establish report authorship for later verification.
+The test bucket is `localnet`, with one bucket-wide WRITE token per team, loaded from private profiles in
+`localnet/hippius-credentials.json`. These grants do not isolate validator prefixes. Signatures detect altered
+reports but do not prevent another writer from overwriting or deleting objects. Live GET/LIST checks
+passed for all three profiles. For this test, `owner` is assigned to validator 3 and also verifies readback.
+
+Production validators run independently on separate operator machines. Same-machine validator identities
+are a development test arrangement only. Hippius integration tests use actual Hippius storage for reports
+from multiple validators. No shared SQLite database or local object-store substitute serves that role.
+
+Each completed round records its completion block and epoch. An independent publisher audits the round,
+persists an immutable signed envelope, and retries uploads without blocking evaluation or weight submission.
+Each validator's private SQLite database remains its own recovery journal for tasks, frozen proposals and
+unacknowledged reports. The shared score service and leaderboard read published report objects; neither chain
+weights nor published score summaries can reconstruct in-flight work or all observations.
+
+The bucket layout is `<validator-hotkey>/<epoch-start>.json`. Each file contains all miner scores from the
+latest completed round in that epoch, with its signature, digest and chain/subnet context. Later rounds
+replace that epoch's snapshot; older retries are superseded in the private outbox. Use one bucket per
+network/subnet. WRITE-only credentials receive an
+upload-accepted receipt; optional immediate readback requires READ access. The reader verifies stored
+signatures, digests, object paths and an explicit localnet hotkey allowlist before serving reports. Individual
+scores remain separate. Delivery status is scoped to the destination, including its bucket. Neither upload
+acceptance nor verified readback confirms chain weights or storage-chain finality. The original upload
+gateway and JSON object store remain development-only test substitutes.
+See the [reporting guide](docs/score-reporting.md) for the protocol, local setup and remaining integration work.
+
 ## Scoring policy: `rn-equal-cases-v1`
 
 Each of the five cases has a fixed 20% share. All assigned valid cases count, including failures. The round score is the mean of these five outcomes; there is no speed bonus or moving average.

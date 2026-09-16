@@ -14,6 +14,7 @@ import sentry_sdk
 from dotenv import load_dotenv
 from nexus.v1 import (
     AsyncHttpNeuronCommunicator,
+    BlockBeatNode,
     BlockCount,
     NetUid,
     NexusValidator,
@@ -36,6 +37,7 @@ from validator.credentials.protocol import CredentialRequest, CredentialResponse
 from validator.logging_config import LoggingSettings, configure_logging
 from validator.otel import OtelSettings, setup_otel
 from validator.payload import PingInput, PingPayloadCreator, PongOutput
+from validator.reporting.publisher import PublishReports, ReportingSettings
 from validator.response_logger import ErrorLoggerNode, ResponseLoggerNode
 
 
@@ -109,6 +111,7 @@ class Validator(NexusValidator):
             settings.total_processing_timeout,
             settings.max_in_flight,
             settings.max_score_age,
+            settings.tempo,
         )
         weight_beat = SetWeightsBeatNode(
             "credential-weight-clock",
@@ -143,6 +146,12 @@ class Validator(NexusValidator):
         self.connect(communicator.processed, observe.sink)
         self.connect(evaluation.error, errors.sink)
         self.connect(communicator.error, errors.sink)
+        reporting = ReportingSettings()
+        if reporting.enabled:
+            publisher = PublishReports(settings.ledger_path, settings.netuid, reporting)
+            # A separate producer gives uploads their own contexts; shared beat contexts hold locks.
+            report_clock = BlockBeatNode("score-report-clock", polling_interval=timedelta(seconds=5))
+            self.connect(report_clock.source, publisher.sink)
 
 
 def _setup_sentry() -> None:

@@ -43,18 +43,26 @@ def expected_scores(version: str) -> dict[str, float]:
     }
 
 
-def verify(version: str, timeout: int, report: str, after_round: int = 0) -> None:
+def verify(
+    version: str,
+    timeout: int,
+    report: str,
+    after_round: int = 0,
+    *,
+    validator_wallet: str = "validator",
+    ledger_path: Path | None = None,
+) -> None:
     """Require a complete expected round and a matching recent direct-chain weight row.
 
     Raises:
         click.ClickException: If the measured profile scores differ or confirmation times out.
     """
-    database = LOCALNET / "state/credentials.sqlite3"
+    database = ledger_path or LOCALNET / "state/credentials.sqlite3"
     deadline = time.monotonic() + timeout
     profiles = {
         Wallet(name=f"{profile}-1", path=str(LOCALNET / "wallets")).hotkey.ss58_address: profile for profile in PROFILES
     }
-    validator_key = Wallet(name="validator", path=str(LOCALNET / "wallets")).hotkey.ss58_address
+    validator_key = Wallet(name=validator_wallet, path=str(LOCALNET / "wallets")).hotkey.ss58_address
     last_status = "no queued batch"
     with bt.Subtensor(network="ws://127.0.0.1:9944") as chain:
         while time.monotonic() < deadline:
@@ -125,6 +133,8 @@ def verify(version: str, timeout: int, report: str, after_round: int = 0) -> Non
                 "queued_at": queued_at,
                 "chain_block": block,
                 "validator_uid": validator.uid,
+                "validator_wallet": validator_wallet,
+                "validator_hotkey": validator_key,
                 "validator_last_update": validator.last_update,
                 "scores": scores,
                 "cases_per_miner": 5,
@@ -132,7 +142,8 @@ def verify(version: str, timeout: int, report: str, after_round: int = 0) -> Non
                 "profiles_by_uid": {actual_roster[key]: name for key, name in profiles.items()},
                 "direct_chain_readback": True,
             }
-            path = LOCALNET / "state" / f"{report}.json"
+            suffix = "" if validator_wallet == "validator" else f"-{validator_wallet}"
+            path = LOCALNET / "state" / f"{report}{suffix}.json"
             path.write_text(json.dumps(output, indent=2) + "\n")
             click.echo(json.dumps(output, indent=2))
             return
@@ -148,14 +159,23 @@ def main() -> None:
 @click.option("--version", type=click.Choice(["v1", "v2"]), required=True)
 @click.option("--timeout", type=click.IntRange(1, 900), default=300)
 @click.option("--after-round", type=click.IntRange(0), default=0)
+@click.option("--validator-wallet", type=click.Choice(["validator", "validator-2", "validator-3"]), default="validator")
+@click.option("--ledger-path", type=click.Path(exists=True, dir_okay=False, path_type=Path), default=None)
 @click.option(
     "--report",
     default="mvp-report",
-    type=click.Choice(["mvp-report", "baseline", "transition", "recovery"]),
+    type=click.Choice(["mvp-report", "baseline", "transition", "recovery", "score-reporting", "hippius"]),
 )
-def verify_command(version: str, timeout: int, report: str, after_round: int) -> None:
+def verify_command(
+    version: str,
+    timeout: int,
+    report: str,
+    after_round: int,
+    validator_wallet: str,
+    ledger_path: Path | None,
+) -> None:
     """Wait for profile scores and matching weights, then save a local report."""
-    verify(version, timeout, report, after_round)
+    verify(version, timeout, report, after_round, validator_wallet=validator_wallet, ledger_path=ledger_path)
 
 
 @main.command("source")
