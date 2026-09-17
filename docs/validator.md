@@ -2,7 +2,11 @@
 
 This release uses fictional RN evaluations with production deployment practices. Defaults are `network=test` and `netuid=568`. Run one operator identity on each host and start only after its hotkey is registered and has a validator permit.
 
-## Required operator configuration
+## Operator configuration
+
+`VALIDATOR_IMAGE` selects the packaged validator version for Docker Compose. It is a container image reference, not a wallet or chain setting. Running the Python validator directly with `uv run --frozen validator --env-file <path>` does not use this variable; source runs must configure their own private chain-sidecar address and identity settings.
+
+Pylon is the chain sidecar: it connects to the real Bittensor testnet, reads blocks and registered miners, and submits the validator's weights. The current implementation requires it for both Docker and source runs. It is separate from Hippius score storage.
 
 From a reviewed checkout:
 
@@ -10,7 +14,7 @@ From a reviewed checkout:
 bash installer/install.sh
 ```
 
-This creates `envs/deployed/.env` with mode `0600` and distinct random chain-sidecar tokens. It preserves an existing file and starts no services. Fill in:
+This creates `envs/deployed/.env` with mode `0600` and distinct random chain-sidecar tokens. It preserves an existing file and starts no services. Review the defaults and fill in the required values:
 
 
 | Setting                                              | Value                                                                     |
@@ -18,11 +22,14 @@ This creates `envs/deployed/.env` with mode `0600` and distinct random chain-sid
 | `VALIDATOR_IMAGE`                                    | Published validator image with `@sha256:<digest>`                         |
 | `VALIDATOR_NETWORK`, `VALIDATOR_NETUID`             | Defaults: `test`, `568`                                                   |
 | `VALIDATOR_TEMPO`                                    | Actual subnet tempo; do not copy an assumed development value             |
-| `VALIDATOR_WALLET_NAME`, `VALIDATOR_HOTKEY_NAME`     | This operator's registered wallet                                         |
-| `HOST_WALLET_DIR`                                    | Absolute wallet directory with the signing hotkey and public coldkey only |
+| `VALIDATOR_WALLET_PATH`                             | Wallet directory; default `~/.bittensor/wallets`                           |
+| `VALIDATOR_WALLET_NAME`                             | Wallet name; default `default`                                           |
+| `VALIDATOR_HOTKEY_NAME`                             | Hotkey name; default `default`                                           |
 | `HIPPIUS_BUCKET`                                     | `validity-testnet`                                                        |
 | `HIPPIUS_ACCESS_KEY_ID`, `HIPPIUS_SECRET_ACCESS_KEY` | This operator's dedicated ACL token pair                                  |
 
+
+The three wallet settings match Bittensor's path, wallet name and hotkey name. `~` expands to the current user's home directory. Compose uses `VALIDATOR_WALLET_PATH` as the host directory and mounts it read-only at `/wallets` for the validator, preflight and chain sidecar; all use the same wallet and hotkey names. Set a custom path in this variable when needed.
 
 Service tokens live only in `.env`. Wallet private keys remain protected files mounted read-only; never include a coldkey private key in the deployment. Give container UID/GID `10001:10001` read access to only the required files. Do not make private files world-readable. Do not reuse previous development wallets or recovery databases.
 

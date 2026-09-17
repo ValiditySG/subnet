@@ -15,21 +15,26 @@ cp -n .env.example .env
 chmod 600 .env
 ```
 
-Fill in the private `.env` before starting:
+Review the defaults and fill in the required values in the private `.env` before starting:
 
 | Setting | Value |
 | --- | --- |
 | `MINER_NETWORK`, `MINER_NETUID` | Defaults: `test`, `568` |
-| `MINER_WALLET_NAME`, `MINER_HOTKEY_NAME` | This operator's registered miner wallet |
+| `MINER_WALLET_PATH` | Wallet directory; default `~/.bittensor/wallets` |
+| `MINER_WALLET_NAME` | Wallet name; default `default` |
+| `MINER_HOTKEY_NAME` | Hotkey name; default `default` |
 | `MINER_ALLOWED_VALIDATORS` | JSON array of admitted validator hotkeys, e.g. `["<hotkey>"]` |
 | `MINER_PYLON_OPEN_ACCESS_TOKEN`, `PYLON_METRICS_TOKEN` | Two independent random secrets for the private chain sidecar |
 | `MINER_SOURCE_VERSION` | `v1` or `v2`, matching the pilot's agreed source rollout |
 | `MINER_IMAGE` | Released miner image with `@sha256:<digest>` for Compose |
-| `HOST_MINER_WALLET_DIR` | Absolute directory containing the miner hotkey and public coldkey only |
+
+The three wallet settings match Bittensor's path, wallet name and hotkey name. `~` expands to the current user's home directory. Source runs load the wallet directly from `MINER_WALLET_PATH`; Compose mounts that host directory read-only at `/wallets` inside the miner container and passes the same wallet and hotkey names.
 
 Keep tokens in `.env`; wallet private keys remain protected files. Give container UID/GID `10001:10001` read access to the required mounted files without making them world-readable. Keep the coldkey private key offline. Do not reuse retired development wallets or state.
 
 ## Run with Docker
+
+`MINER_IMAGE` selects the packaged miner version for Docker Compose. It is required only for this deployment method; the source command below runs the checked-out Python code directly.
 
 On the miner operator's host, after registration and configuration:
 
@@ -54,7 +59,9 @@ Publish a reviewed image and use its registry digest in the deployment configura
 
 ## Run from source
 
-Set `MINER_WALLET_PATH` and `MINER_JOURNAL_PATH` to this host's private paths. Set `MINER_PYLON_ADDRESS` to a trusted, privately reachable testnet sidecar using the configured token. Then, from `miner/`:
+Pylon supplies the current subnet registrations and validator permits used to admit requests. Source runs still need this chain connection; it queries the real testnet and is separate from the miner's HTTP evaluation endpoint.
+
+Override the three wallet settings if the existing wallet uses different values. Set `MINER_JOURNAL_PATH` to this host's private state path and `MINER_PYLON_ADDRESS` to a trusted, privately reachable testnet sidecar using the configured token. Then, from `miner/`:
 
 ```sh
 uv sync --frozen

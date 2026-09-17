@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     network: Literal["test"] = "test"
     chain_genesis: Literal["0x8f9cf856bf558a14440e75569c9e58594757048d7b3a84b5d25f6bd978263105"]
     netuid: int = Field(default=568, ge=1, le=65535)
-    wallet_path: Path = Path("/wallets")
-    wallet_name: str = Field(min_length=1)
-    hotkey_name: str = Field(min_length=1)
+    wallet_path: Path = Path("~/.bittensor/wallets")
+    wallet_name: str = Field(default="default", min_length=1)
+    hotkey_name: str = Field(default="default", min_length=1)
     allowed_validators: frozenset[str] = Field(min_length=1)
     pylon_address: str
     pylon_open_access_token: SecretStr = Field(min_length=1)
@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     source_version: Literal["v1", "v2"] = "v1"
     journal_path: Path = Path("/var/lib/validity-miner/requests.sqlite3")
     requests_per_minute: int = Field(default=120, ge=1, le=1000)
+
+    @field_validator("wallet_path")
+    @classmethod
+    def expand_wallet_path(cls, path: Path) -> Path:
+        """Resolve home-relative paths before loading the signing identity."""
+        return path.expanduser()
 
     @field_validator("allowed_validators")
     @classmethod

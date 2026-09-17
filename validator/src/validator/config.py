@@ -6,7 +6,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 SYNTHETIC_DATA = Path(__file__).parent / "synthetic"
@@ -18,9 +18,15 @@ class WalletSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="VALIDATOR_", extra="ignore", hide_input_in_errors=True, populate_by_name=True
     )
-    wallet_path: Path = Path("/wallets")
-    wallet_name: str = Field(min_length=1)
-    hotkey_name: str = Field(min_length=1)
+    wallet_path: Path = Path("~/.bittensor/wallets")
+    wallet_name: str = Field(default="default", min_length=1)
+    hotkey_name: str = Field(default="default", min_length=1)
+
+    @field_validator("wallet_path")
+    @classmethod
+    def expand_wallet_path(cls, path: Path) -> Path:
+        """Resolve home-relative paths for every wallet consumer."""
+        return path.expanduser()
 
 
 class Settings(WalletSettings):

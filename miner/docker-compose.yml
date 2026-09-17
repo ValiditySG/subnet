@@ -29,8 +29,8 @@ services:
       MINER_CHAIN_GENESIS: "${MINER_CHAIN_GENESIS:?}"
       MINER_NETUID: "${MINER_NETUID:-568}"
       MINER_WALLET_PATH: /wallets
-      MINER_WALLET_NAME: "${MINER_WALLET_NAME:?}"
-      MINER_HOTKEY_NAME: "${MINER_HOTKEY_NAME:?}"
+      MINER_WALLET_NAME: "${MINER_WALLET_NAME:-default}"
+      MINER_HOTKEY_NAME: "${MINER_HOTKEY_NAME:-default}"
       MINER_ALLOWED_VALIDATORS: "${MINER_ALLOWED_VALIDATORS:?}"
       MINER_PYLON_ADDRESS: http://pylon:8000
       MINER_PYLON_OPEN_ACCESS_TOKEN: "${MINER_PYLON_OPEN_ACCESS_TOKEN:?}"
@@ -39,7 +39,7 @@ services:
       MINER_SOURCE_VERSION: "${MINER_SOURCE_VERSION:-v1}"
       MINER_REQUESTS_PER_MINUTE: "${MINER_REQUESTS_PER_MINUTE:-120}"
     volumes:
-      - ${HOST_MINER_WALLET_DIR:?}:/wallets:ro
+      - ${MINER_WALLET_PATH:-~/.bittensor/wallets}:/wallets:ro
       - miner-state:/var/lib/validity-miner
     depends_on: [pylon]
     security_opt: [no-new-privileges:true]

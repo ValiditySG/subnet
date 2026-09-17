@@ -7,8 +7,8 @@ x-validator-environment: &validator-environment
   VALIDATOR_CHAIN_GENESIS: "${VALIDATOR_CHAIN_GENESIS:?Set the verified testnet genesis hash}"
   VALIDATOR_TEMPO: "${VALIDATOR_TEMPO:?Set the actual subnet tempo}"
   VALIDATOR_WALLET_PATH: /wallets
-  VALIDATOR_WALLET_NAME: "${VALIDATOR_WALLET_NAME:?}"
-  VALIDATOR_HOTKEY_NAME: "${VALIDATOR_HOTKEY_NAME:?}"
+  VALIDATOR_WALLET_NAME: "${VALIDATOR_WALLET_NAME:-default}"
+  VALIDATOR_HOTKEY_NAME: "${VALIDATOR_HOTKEY_NAME:-default}"
   VALIDATOR_LEDGER_PATH: /var/lib/validity/credentials.sqlite3
   VALIDATOR_PYLON_SERVICE_ADDRESS: http://pylon:8000
   VALIDATOR_PYLON_OPEN_ACCESS_TOKEN: "${VALIDATOR_PYLON_OPEN_ACCESS_TOKEN:?}"
@@ -34,12 +34,12 @@ services:
       PYLON_BITTENSOR_WALLET_PATH: /wallets
       PYLON_TEMPO: "${VALIDATOR_TEMPO:?}"
       PYLON_BLOCK_DURATION_SECONDS: "12"
-      PYLON_ID_VALIDATOR_WALLET_NAME: "${VALIDATOR_WALLET_NAME:?}"
-      PYLON_ID_VALIDATOR_HOTKEY_NAME: "${VALIDATOR_HOTKEY_NAME:?}"
+      PYLON_ID_VALIDATOR_WALLET_NAME: "${VALIDATOR_WALLET_NAME:-default}"
+      PYLON_ID_VALIDATOR_HOTKEY_NAME: "${VALIDATOR_HOTKEY_NAME:-default}"
       PYLON_ID_VALIDATOR_NETUID: "${VALIDATOR_NETUID:-568}"
       PYLON_ID_VALIDATOR_TOKEN: "${VALIDATOR_PYLON_IDENTITY_TOKEN:?}"
     volumes:
-      - ${HOST_WALLET_DIR:?}:/wallets:ro
+      - ${VALIDATOR_WALLET_PATH:-~/.bittensor/wallets}:/wallets:ro
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
     logging: &logging
@@ -57,7 +57,7 @@ services:
     tmpfs: [/tmp:size=64m,mode=1777]
     environment: *validator-environment
     volumes:
-      - ${HOST_WALLET_DIR:?}:/wallets:ro
+      - ${VALIDATOR_WALLET_PATH:-~/.bittensor/wallets}:/wallets:ro
       - validator-state:/var/lib/validity
     depends_on: [pylon]
     security_opt: [no-new-privileges:true]
@@ -78,7 +78,7 @@ services:
     read_only: true
     environment: *validator-environment
     volumes:
-      - ${HOST_WALLET_DIR:?}:/wallets:ro
+      - ${VALIDATOR_WALLET_PATH:-~/.bittensor/wallets}:/wallets:ro
     entrypoint: [python, -m, validator.preflight]
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]

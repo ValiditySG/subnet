@@ -11,8 +11,9 @@ The user moved testing to Bittensor testnet with synthetic RN evaluations and pr
 practices. Read subnet_design.md and docs/validator.md. Do not revive the retired local chain or same-host
 multi-validator harness. The user registered testnet subnet 568; defaults are network=test, netuid=568.
 Hotkey registration is handled manually by the user. Do not register hotkeys or spend funds
-automatically. Keep wallet names, the operator roster and registration status out of documentation and
-templates. Never reuse prior development journals/wallets.
+automatically. Keep actual operator wallet names, the operator roster and registration status out of
+documentation and templates. Wallet configuration follows Bittensor defaults: path=~/.bittensor/wallets,
+wallet name=default, hotkey name=default. Never reuse prior development journals/wallets.
 The target Hippius bucket is validity-testnet. Every operator runs independently with its own hotkey,
 ACL token and private recovery journal. Secrets belong in ignored mode-0600 .env files; cryptographic
 wallet key files are protected read-only mounts. Never print secrets, resolved compose environments,
