@@ -1,0 +1,77 @@
+--- a/pylon_service/pylon_service/bittensor/contact.py
++++ b/pylon_service/pylon_service/bittensor/contact.py
+@@ -7,7 +7,7 @@
+ from typing import Any, Protocol, cast
+ 
+ import structlog
+-from bittensor_wallet import Wallet
++from bittensor.wallet import Wallet
+ from pylon_commons.constants import LATEST_BLOCK_MARK
+ from pylon_commons.currency import Currency, CurrencyRao, Token
+ from pylon_commons.models import CommitmentVariant, RevealedCommitment, SubnetRevealedCommitments
+--- a/pylon_service/pylon_service/bittensor/contact_router.py
++++ b/pylon_service/pylon_service/bittensor/contact_router.py
+@@ -4,7 +4,7 @@
+ from collections.abc import Awaitable, Callable
+ 
+ import structlog
+-from bittensor_wallet import Wallet
++from bittensor.wallet import Wallet
+ from pylon_commons.models import CommitmentVariant, RevealedCommitment, SubnetRevealedCommitments
+ from pylon_commons.types import (
+     ArchiveBlocksCutoff,
+--- a/pylon_service/pylon_service/bittensor/pool.py
++++ b/pylon_service/pylon_service/bittensor/pool.py
+@@ -5,7 +5,7 @@
+ from typing import Self
+ 
+ import structlog
+-from bittensor_wallet import Wallet
++from bittensor.wallet import Wallet
+ from pydantic import BaseModel, ConfigDict
+ from pylon_commons.types import ArchiveBlocksCutoff, HotkeyName, WalletName
+ 
+--- a/pylon_service/pylon_service/bittensor/recent/context.py
++++ b/pylon_service/pylon_service/bittensor/recent/context.py
+@@ -1,6 +1,6 @@
+ from abc import ABC, abstractmethod
+ 
+-from bittensor_wallet import Wallet
++from bittensor.wallet import Wallet
+ from pylon_commons.models import BittensorModel
+ from pylon_commons.types import HotkeyName, NetUid
+ 
+--- a/pylon_service/pylon_service/identities.py
++++ b/pylon_service/pylon_service/identities.py
+@@ -1,7 +1,7 @@
+ import os
+ from functools import cached_property
+ 
+-from bittensor_wallet import Wallet
++from bittensor.wallet import Wallet
+ from pydantic_settings import BaseSettings, SettingsConfigDict
+ from pylon_commons.settings import ENV_FILE
+ from pylon_commons.types import HotkeyName, IdentityName, NetUid, PylonAuthToken, WalletName
+--- a/pylon_service/pyproject.toml
++++ b/pylon_service/pyproject.toml
+@@ -6,9 +6,9 @@
+ authors = [{name = "Reef Technologies", email = "opensource@reef.pl"}]
+ dependencies = [
+     "bittensor-pylon-commons",
+-    "turbobt>=1.3.1",
++    "turbobt==1.3.1+validity.sdk11",
+     "litestar[standard,prometheus]>=2.24,<3",
+-    "bittensor_wallet",
++    "bittensor==11.1.0",
+     "sentry-sdk[litestar]",
+     "uvicorn>=0.35.0",
+     "tenacity",
+@@ -64,7 +64,7 @@
+ [tool.hatch.version]
+ source = "vcs"
+ tag-pattern = "^service-v(?P<version>.*)$"
+-fallback-version = "0.0.0"
++fallback-version = "2.3.2+validity.sdk11"
+ raw-options.root = ".."
+ raw-options.git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "service-v*"]
+ 

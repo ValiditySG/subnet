@@ -1,0 +1,193 @@
+{
+  "$defs": {
+    "Availability": {
+      "enum": [
+        "available",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "BoundResponse": {
+      "additionalProperties": false,
+      "description": "The request hash prevents reuse across tasks, validators, subnets and chains.",
+      "properties": {
+        "request_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "response": {
+          "$ref": "#/$defs/CredentialResponse"
+        }
+      },
+      "required": [
+        "request_hash",
+        "response"
+      ],
+      "title": "BoundResponse",
+      "type": "object"
+    },
+    "CheckResult": {
+      "additionalProperties": false,
+      "description": "Availability is separate from the license finding.",
+      "properties": {
+        "check": {
+          "const": "fixture_license",
+          "default": "fixture_license",
+          "title": "Check",
+          "type": "string"
+        },
+        "availability": {
+          "$ref": "#/$defs/Availability"
+        },
+        "finding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Finding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Evidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "availability",
+        "finding",
+        "evidence"
+      ],
+      "title": "CheckResult",
+      "type": "object"
+    },
+    "CredentialResponse": {
+      "additionalProperties": false,
+      "description": "Untrusted miner output; request binding and truth are checked separately.",
+      "properties": {
+        "protocol_version": {
+          "const": "validity.synthetic-rn.v1",
+          "default": "validity.synthetic-rn.v1",
+          "title": "Protocol Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "provider_ref": {
+          "pattern": "^fictional-[0-9]+$",
+          "title": "Provider Ref",
+          "type": "string"
+        },
+        "identity_resolution": {
+          "$ref": "#/$defs/Identity"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/CheckResult"
+          },
+          "maxItems": 1,
+          "minItems": 1,
+          "title": "Checks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "task_id",
+        "provider_ref",
+        "identity_resolution",
+        "checks"
+      ],
+      "title": "CredentialResponse",
+      "type": "object"
+    },
+    "Digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "The fixture snapshot and records supporting an observation.",
+      "properties": {
+        "source": {
+          "const": "fixture-board",
+          "default": "fixture-board",
+          "title": "Source",
+          "type": "string"
+        },
+        "source_version": {
+          "default": "fixture-board-v1",
+          "enum": [
+            "fixture-board-v1",
+            "fixture-board-v2"
+          ],
+          "title": "Source Version",
+          "type": "string"
+        },
+        "snapshot_sha256": {
+          "$ref": "#/$defs/Digest"
+        },
+        "record_ids": {
+          "items": {
+            "$ref": "#/$defs/RecordId"
+          },
+          "maxItems": 4,
+          "title": "Record Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "snapshot_sha256",
+        "record_ids"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "Finding": {
+      "enum": [
+        "active",
+        "suspended"
+      ],
+      "type": "string"
+    },
+    "Identity": {
+      "enum": [
+        "matched",
+        "ambiguous",
+        "not_found",
+        "unresolved"
+      ],
+      "type": "string"
+    },
+    "RecordId": {
+      "pattern": "^fixture-record-[0-9]+$",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "The miner signs its result, including the complete assignment's digest.",
+  "properties": {
+    "result": {
+      "$ref": "#/$defs/BoundResponse"
+    },
+    "signature": {
+      "pattern": "^[0-9a-f]{128}$",
+      "title": "Signature",
+      "type": "string"
+    }
+  },
+  "required": [
+    "result",
+    "signature"
+  ],
+  "title": "SignedResponse",
+  "type": "object"
+}

@@ -1,37 +1,29 @@
 [project]
-name = "miner"
+name = "validity-miner"
 version = "0.1.0"
-description = "Bittensor subnet miner."
+description = "Validity synthetic RN testnet reference miner."
 requires-python = ">=3.14"
 dependencies = [
-    "bittensor",
-    "bittensor-wallet",
-    "click>=8.3.2",
-    "httpx",
-    "litestar[standard]",
-    "pydantic>=2.13.0",
-    "uvicorn",
+    "validity-protocol", "bittensor==11.1.0", "bittensor-pylon-client==2.1.0",
+    "click>=8.3.2", "pydantic-settings>=2.14.0", "python-dotenv>=1.2.2",
+    "structlog>=25,<27", "uvicorn>=0.46", "opentelemetry-api~=1.41",
 ]
 
 [project.scripts]
-miner = "miner:main"
+miner = "validity_miner.main:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.targets.wheel]
-only-include = ["miner.py"]
-
 [tool.uv]
-exclude-newer = "1 week"
+exclude-newer = "11 days"
+
+[tool.uv.sources]
+validity-protocol = { path = "../protocol" }
 
 [dependency-groups]
-dev = [
-    "basedpyright>=1.36.1",
-    "ruff",
-    "pytest",
-]
+dev = ["basedpyright>=1.36.1", "ruff", "pytest", "httpx==0.28.1"]
 
 [tool.ruff]
 line-length = 120
@@ -52,9 +44,10 @@ filterwarnings = [
 ]
 
 [tool.basedpyright]
+stubPath = "../protocol/typings"
 pythonVersion = "3.14"
 typeCheckingMode = "strict"
-include = ["miner.py", "tests"]
+include = ["src", "tests"]
 verboseOutput = true
 useLibraryCodeForTypes = true
 reportMissingTypeStubs = "warning"
@@ -63,4 +56,4 @@ reportUnusedImport = "warning"
 reportExplicitAny = "none"
 venvPath = "."
 venv = ".venv"
-extraPaths = [".venv/lib/python3.14/site-packages"]
+extraPaths = ["src", ".venv/lib/python3.14/site-packages"]

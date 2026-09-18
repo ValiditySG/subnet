@@ -1,0 +1,10 @@
+[project]
+name = "validity-protocol"
+version = "0.1.0"
+description = "Shared signed RN wire contracts for Validity."
+requires-python = ">=3.14"
+dependencies = ["pydantic>=2.13,<3", "bittensor==11.1.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

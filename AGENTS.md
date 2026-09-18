@@ -1,183 +1,86 @@
-# Context
+# Validity
 
-This project is a template for a Bittensor subnet project. It is meant as a starting point for new projects,
-containing the necessary knowledge and structure to quickly bootstrap a new subnet. As an agent, use this
-template and modify it as needed. Once you start developing it, update this notice to reflect what the actual
-project is about and keep its template origin as a short note.
+Validity is an RN credential-verification subnet for travel nursing agencies. Initial jurisdiction targets
+are CA, TX, FL, NY and IL; these are product targets, not established source coverage. NPs/PAs follow RNs;
+physicians follow commercial validation. Public naming is Validity only. Keep README introductory, link
+https://www.validitysg.io, and keep operator guides in docs/validator.md and docs/miner.md.
 
-## Repository layout
+## Active scope
 
-This is a monorepo with two **independent** uv projects plus shared local-development tooling:
+The user moved testing to Bittensor testnet with synthetic RN evaluations and production deployment
+practices. Read subnet_design.md and docs/validator.md. Do not revive the retired local chain or same-host
+multi-validator harness. The user registered testnet subnet 568; defaults are network=test, netuid=568.
+Hotkey registration is handled manually by the user. Do not register hotkeys or spend funds
+automatically. Keep actual operator wallet names, the operator roster and registration status out of
+documentation and templates. Wallet configuration follows Bittensor defaults: path=~/.bittensor/wallets,
+wallet name=default, hotkey name=default. Never reuse prior development journals/wallets.
+The target Hippius bucket is validity-testnet. Every operator runs independently with its own hotkey,
+ACL token and private recovery journal. Secrets belong in ignored mode-0600 .env files; cryptographic
+wallet key files are protected read-only mounts. Never print secrets, resolved compose environments,
+wallet seeds, private key files or signed S3 URLs.
 
-- `validator/` — Nexus-based subnet validator (own `pyproject.toml`, `uv.lock`, `.venv`); also holds the
-  production `Dockerfile`
-- `miner/` — Bittensor subnet miner (own `pyproject.toml`, `uv.lock`, `.venv`)
-- `localnet/` — Local subtensor + pylon + bootstrap + miner fixtures for end-to-end development
-- `installer/` — Copier-templated validator installer scripts (`install.sh.jinja`,
-  `update_compose.sh.jinja`, `README.md.jinja`); rendered by `copier copy` when adapting the template
-- `envs/deployed/` — Copier-templated production `docker-compose.yml.jinja` (validator + pylon);
-  the rendered repo is promoted on the `deploy-config-production` branch, with this compose file and the
-  installer scripts as the operator-critical files
-- `.github/workflows/` — Copier-templated CI; `build-validator.yml.jinja` builds and pushes the validator
-  image to a registry on push to `deploy-build-*` branches
-- `copier.yml` — Copier question schema for adapting this template to a concrete subnet
-- `knowledge/` — Bittensor / Nexus / localnet domain knowledge
-- `docs/` — additional documentation
+Weights go to chain; signed raw scores go directly to real Hippius. Object layout is
+<validator-hotkey>/<epoch-start>.json, containing every miner in the latest complete round of that epoch.
+Use a separate bucket per network/subnet. Bucket-wide tokens do not establish prefix isolation. Signatures
+establish authorship, not availability or truth. Private SQLite journals must not be shared across
+operators or used as the combined leaderboard store. Storage failure must not block weights. Test doubles
+live only under validator/tests, miner/tests and pylon/tests; deployed code has no local storage backend or upload gateway.
+Hippius publishing defaults to enabled. For the user's chain-only testnet checks, HIPPIUS_ENABLED=false
+disables the publisher and storage preflight; evaluation and weights still run, without a storage substitute.
 
-There is **no** top-level Python project and **no** uv workspace. Run `uv sync` inside `validator/` or `miner/`
-before working on it. There is no global `uv run` from the repo root.
+Synthetic evaluation is the only implemented RN source. Keep scope=synthetic-rn and the fictional ZZ-TEST
+identifiers explicit. Real-source adapters and agency workflows follow. Do not claim that preparation,
+a successful PUT, or a queued weight proposal establishes live testnet completion.
 
-Developer quickstart for the end-to-end dev environment (subtensor + pylon + validator + miner): see
-`localnet/README.md`.
+## Layout and tools
 
-Ruff and basedpyright config is duplicated between `validator/pyproject.toml` and `miner/pyproject.toml`. When
-changing tooling config, keep both in sync.
+- validator/: independent Python 3.14 uv project, src, tests, locked dependencies, Dockerfile.
+- validator/src/validator/synthetic/: public fictional board snapshots and reviewed expected labels.
+- miner/: independent Python 3.14 uv project and runnable synthetic RN miner.
+- protocol/: shared Python wire models plus versioned RN exchange and score-report schemas.
+- envs/deployed/: one-operator testnet Compose deployment and .env.example.
+- installer/: private config initialization and explicit digest-pinned deployment.
+- docs/: operator guides. knowledge/: internal domain/runtime references.
 
-## Adapting this repository to a new subnet
+Run uv sync --frozen and uv run --frozen inside validator/ or miner/. There is no root uv project.
+Before subnet design/code work, read knowledge/bittensor/INDEX.yaml and
+knowledge/bittensor/subnet.invariants.yaml directly; re-read indices after compaction. Then read relevant
+knowledge files. The user explicitly requires runnable miner code for this pilot, overriding the generic
+validator-only reference guidance. Maintain miner/ as a synthetic testnet reference implementation,
+independent of validator expected-answer labels. Do not add real RN-source claims or restore a local chain.
 
-This template has to be adapted to an actual project at some point. When starting out, refer to the
-knowledge/tasks.project-bootstrap.md file. It contains workflows for:
+## Runtime requirements
 
-- Bootstrapping the template
-- Designing the subnet
-- Implementing the validator
-- Setting up localnet
-- Adapting this repository to a new subnet
-- Generally bootstrapping the project
+Use the installed Nexus actor runtime and Pylon chain sidecar. Before validator edits read
+validator/.venv/lib/python3.14/site-packages/nexus/docs/nexus.md and discover the public nexus.v1 APIs.
+Import only versioned public runtime modules. The user explicitly requires the latest stable Bittensor SDK;
+use bittensor==11.1.0 and its bundled wallet API instead of the superseded bittensor-wallet package.
+The Validity Pylon image also uses bittensor==11.1.0 for its wallet API. Explicit patches migrate Pylon
+2.3.2 and TurboBT 1.3.1 imports/dependencies and convert signing payloads to bytes. Both packages are rebuilt
+with a +validity.sdk11 suffix; the legacy wallet package is removed. Dependency and offline compatibility
+checks run during the image build. Keep the SDK pin aligned across all projects, pylon/sdk-requirements.in,
+both source patches and their test. Build pylon/Dockerfile and deploy its immutable image through
+PYLON_IMAGE. See docs/chain-service.md.
+Keep chain operations in the actor-owned chain-service integration. Do not create background work outside
+actor ownership. Reuse built-in components and public extension points.
+CredentialHTTP extends the public communicator: synchronous HTTP plus hotkey signatures, bounded
+responses, no redirects/proxy discovery, registered public IP endpoints, no public callback listener.
+The user requires plain HTTP only between miners and validators, with hotkey-based participant
+authentication. Do not introduce TLS, HTTPS, certificates or TLS key mounts for this connection.
+Signatures and admission/replay checks remain mandatory. Payloads are unencrypted and strictly synthetic;
+real credential data requires a separate confidentiality design. The miner's default HTTP port is 8080.
+One request is in flight; durable assignments recover after restart. Weight and report clocks use separate
+contexts. Do not replace durable state with process memory. One journal lock prevents duplicate processes
+on a host; operators must also ensure only one active host uses their hotkey.
 
-If your task involves any of these, or the task is not clear, but it appears we are not done with the adapting
-yet, adhere strictly to the workflow described in that file and get that done first.
+Keep structured logging and OpenTelemetry event counters/duration histograms for each subsystem. Do not
+log credential validation inputs or untrusted response bodies. Default deployment has bounded local logs
+and a heartbeat healthcheck, no external telemetry forwarding. Trace export remains optional.
 
-# Knowledge base
+## Quality gates
 
-## Preparing for tasks
-
-Start by discovering the information available in the knowledge base with `find knowledge -type f | sort`
-Crucially: Never summarize index files. Never delegate reading indices to agents or exploration tools. During
-your tasks and conversations, eagerly read additional files if they could be relevant. After compaction,
-re-read indices directly and read relevant files again so as not to forget crucial details.
-
-## Bittensor domain
-
-Whenever Bittensor domain knowledge is required, focus on the Bittensor knowledge files and skip the rest. It
-is important to first understand the specifics of the Bittensor ecosystem, work with high-level concepts, and
-iterate on the subnet's design rather than jumping straight into implementation details. Designing a subnet is
-a complex reasoning process and requires careful consideration on multiple levels.
-
-Contains, among others:
-
-- how to frame subnet ideas into the bittensor ecosystem
-- requirements and invariants that must be satisfied by a good subnet design
-- theory behind validation, mining, incentives, miner-validator contract
-- suggested external integrations and tools in the ecosystem
-
-Index: knowledge/bittensor/INDEX.yaml
-
-Recommended subnet design location: ./subnet_design.md (create when needed)
-
-## Nexus
-
-Nexus is the framework for building Bittensor subnet validators. It replaces the bittensor SDK for validator
-development. All validator code runs inside Nexus — it is the complete runtime. You must use Nexus for
-implementing the validator.
-
-Nexus provides a large set of reusable components that handle common validator concerns. Before writing any
-code, making any decisions, or responding with recommendations — discover what Nexus offers. It will likely
-already handle most of the requirements of the subnet you are working on.
-
-The Nexus knowledge base ships with the Nexus package — find it in `validator/.venv` within the installed
-Nexus package under `docs/`. Make sure Nexus is installed first by running `uv sync` in `validator/`. Read
-`docs/nexus.md` in the Nexus package — it is the grounding document for all validator implementation work.
-
-Whenever working on validator code, double-check compliance with Nexus's best practices, coding guidelines,
-requirements, and correct and optimal usage of Nexus components.
-
-Skip reading Nexus KB for higher level tasks that do not touch the code.
-
-### Pylon
-
-Sidecar subtensor communication proxy. Nexus uses Pylon for all subtensor (blockchain) communication. The pylon
-client's source code can be found and inspected in `validator/.venv`.
-
-Skip for higher level tasks that do not touch the code.
-
-### Observability
-
-`envs/deployed/docker-compose.yml.jinja` ships a Prometheus-based metrics stack:
-`cadvisor` (per-container metrics), `node-exporter` (host metrics), a local
-`prometheus` service (image `bittensor_prometheus`) that scrapes `cadvisor`,
-the host `node-exporter`, and Pylon's `/metrics` (using the Bearer token from
-`PYLON_METRICS_TOKEN`, generated by `installer/install.sh.jinja`), and a
-`prometheus-proxy` sidecar that remote-writes to `https://prometheus.bactensor.io`.
-
-The template's validator does **not** expose a `/metrics` endpoint and ships no
-project-specific metrics module — this is an intentional blank slate. When you
-extend the validator (new payload creators, scorers, nodes, weight setters),
-treat metrics as first-class and follow Nexus's own conventions: inspect the
-installed Nexus package (`validator/.venv` after `uv sync`, starting from
-`docs/nexus.md` and the package sources) to see how Nexus exposes and registers
-metrics for its components (actors, engine...), and mirror that
-approach when adding observability to your validator. Every new subsystem
-should ship with at least one event counter and one latency histogram, named
-consistently with the Nexus patterns you find there. If you expose a validator
-`/metrics` endpoint, add it into `envs/deployed/docker-compose.yml.jinja`
-scrape targets and update `installer/README.md.jinja`.
-
-#### Distributed tracing
-
-The validator emits OpenTelemetry traces, configured in `validator/src/validator/otel.py.jinja`
-(rendered to `otel.py`) and wired in from `main()` right after `configure_logging`. Resource
-attributes **deliberately carry no operator hotkey** — the observability proxy adds it downstream;
-the structlog processors in `logging_config.py` stamp the same attributes onto every log line so logs
-and traces correlate.
-
-In deployment the validator exports to a `grafana/alloy` sidecar that tail-samples and forwards to an
-OTLP/HTTP upstream (`envs/deployed/alloy/config.alloy.jinja`). **`TRACES_UPSTREAM_*` are required by
-the sidecar** — Alloy crash-loops on startup without an endpoint and credentials. `update_compose.sh`
-keeps both `docker-compose.yml` and `alloy/config.alloy` in sync on operator hosts.
-
-#### Structured logging
-
-The validator logs exclusively via `structlog`. Logging and structlog are configured in
-`validator/src/validator/logging_config.py`, tunable via `VALIDATOR_LOGGING_`-prefixed
-environment variables.
-
-Skip for higher level tasks that do not touch the code.
-
-## localnet
-
-Local development environment that allows running a subnet locally, as opposed to testnet or mainnet. KB
-contains everything needed to set it up and operate it: templates, recipes, requirements, operational
-guidelines, best practices, gotchas, and much more.
-
-Index: knowledge/localnet/INDEX.md Localnet resources: localnet/*
-
-Read when working on or debugging issues during development on localnet. Skip for higher level tasks that do
-not touch the code.
-
-## Coding guidelines
-
-Location: knowledge/guidelines.coding-and-qa.md
-
-Conventions, tooling, best practices, QA gates, comments, documentation, and more.
-
-Read when working with any kind of code, be it validator, localnet, or any other code in this repository. Skip
-for higher level tasks that do not touch the code.
-
-# General hints
-
-- use `uv` instead of `python` for managing dependencies, running scripts, entrypoints, ad-hoc code
-    - `uv add ...` / `uv remove ...` / `uv sync` (+ `--all-groups`, `--all-extras`)
-    - `uv run --with foo,bar ...` (with temporary dependencies)
-    - `uv run python -c '...'` / `uv run some/script.py` (code or script)
-
-# Documentation rules
-
-Keep README.md, AGENTS.md, tests, docstrings, and code up to date and in sync. If one changes, update the
-others. Whenever updated, all information, claims, guides, commands, etc. in these files must be verified and
-tested. Take great care to avoid drift between these files.
-
-
----
-
-Note: CLAUDE.md and .cursorrules both link to CLAUDE.md - they are all the same file. No need to re-read it.
+Read knowledge/guidelines.coding-and-qa.md. Use Python 3.14, strict basedpyright and no weakened rules.
+Run in order: ruff check --fix; ruff format; basedpyright; pytest -q --tb=line -r f.
+Exercise security boundaries, durable retries, chain identity gates and real signed HTTP exchanges. Keep docs,
+schemas, examples and tests aligned. Build and smoke-test the container before describing it as usable.
+Live chain/Hippius checks require the actual netuid, registered wallets, public miner endpoints and authorized tokens.

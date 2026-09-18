@@ -140,6 +140,7 @@ critical_doctrines:
   - "Validator-only development: ONLY write validator code, NEVER production miner code (localnet miner fixtures permitted)"
   - "'What am I measuring?' must answer in ONE sentence"
   - "Dendrite/Synapse: DEPRECATED, use HTTP"
+  - "Validity miner-validator communication: plain HTTP only, hotkey signatures, no TLS/HTTPS/certificates"
   - "Open source > black box mechanisms"
   - "Validators NOT trusted individually"
   - "Secret eval sets WILL leak"

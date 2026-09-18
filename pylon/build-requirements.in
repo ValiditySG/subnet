@@ -1,0 +1,7 @@
+# Build backends declared by the pinned Pylon and TurboBT sources.
+hatchling
+hatch-vcs
+# Hatch's editable-build hook; preserve Pylon's upstream source/migration layout.
+editables
+pdm-backend~=2.4
+setuptools-scm~=9.0

@@ -71,7 +71,8 @@ communication:
     - synapse
 
   recommended:
-    protocol: "HTTP/REST"
+    protocol: "plain HTTP/REST; no TLS, HTTPS or certificates"
+    authentication: "Sign requests and verify miner responses with registered SR25519 hotkeys"
     discovery: "miners commit endpoints to chain"
     realized_by: "nexus handles HTTP communication and neuron discovery via pylon"
 

@@ -1,11 +1,14 @@
 [project]
 name = "validator"
 version = "0.1.0"
-description = "Nexus-based Bittensor subnet validator."
+description = "Validity RN credential evaluation validator."
 requires-python = ">=3.14"
 dependencies = [
+    "validity-protocol",
     "attrs>=26.1.0", # previously this was required for Nexus (litestar needed it) #TODO: See if this is still the case
     "bittensor-nexus-library",
+    "bittensor==11.1.0",
+    "boto3==1.43.7",
     "click>=8.3.2",
     "opentelemetry-api~=1.41",
     "opentelemetry-exporter-otlp-proto-http~=1.41",
@@ -31,6 +34,7 @@ build-backend = "hatchling.build"
 exclude-newer = "11 days"
 
 [tool.uv.sources]
+validity-protocol = { path = "../protocol" }
 bittensor-nexus-library = { git = "https://github.com/bittensor-church/bittensor-nexus-library.git" }
 
 [dependency-groups]
@@ -38,6 +42,7 @@ dev = [
     "basedpyright>=1.36.1",
     "ruff",
     "pytest",
+    "boto3-stubs-lite[s3]==1.43.7",
 ]
 
 [tool.ruff]
@@ -59,9 +64,10 @@ filterwarnings = [
 ]
 
 [tool.basedpyright]
+stubPath = "../protocol/typings"
 pythonVersion = "3.14"
 typeCheckingMode = "strict"
-include = ["src", "tests"]
+include = ["src", "tests", "../protocol/src"]
 verboseOutput = true
 useLibraryCodeForTypes = true
 reportMissingTypeStubs = "warning"

@@ -1,0 +1,436 @@
+--- a/turbobt/client.py
++++ b/turbobt/client.py
+@@ -1,6 +1,6 @@
+ import asyncio
+ 
+-import bittensor_wallet
++from bittensor.wallet import Wallet
+ 
+ from .batch import Batch, Transaction
+ from .block import BlockReference, Blocks
+@@ -16,7 +16,7 @@
+     def __init__(
+         self,
+         *args,
+-        wallet: bittensor_wallet.Wallet | None = None,
++        wallet: Wallet | None = None,
+         **kwargs,
+     ):
+         self.subtensor = CacheSubtensor(
+--- a/turbobt/neuron.py
++++ b/turbobt/neuron.py
+@@ -5,7 +5,7 @@
+ import ipaddress
+ import typing
+ 
+-import bittensor_wallet
++from bittensor.wallet import Wallet
+ 
+ from turbobt.block import get_ctx_block_hash
+ 
+@@ -132,7 +132,7 @@
+     async def add_stake(
+         self,
+         amount: int,
+-        wallet: bittensor_wallet.Wallet | None = None,
++        wallet: Wallet | None = None,
+     ) -> None:
+         extrinsic = await self.subnet.client.subtensor.subtensor_module.add_stake(
+             netuid=self.subnet.netuid,
+@@ -192,7 +192,7 @@
+         return certificate
+ 
+     async def remove_stake(
+-        self, amount: int, wallet: bittensor_wallet.Wallet | None = None
++        self, amount: int, wallet: Wallet | None = None
+     ) -> None:
+         extrinsic = await self.subnet.client.subtensor.subtensor_module.remove_stake(
+             netuid=self.subnet.netuid,
+--- a/turbobt/subnet.py
++++ b/turbobt/subnet.py
+@@ -6,8 +6,9 @@
+ from typing import Literal, Required, TypedDict, cast
+ 
+ import bittensor_drand
+-import bittensor_wallet
+ import scalecodec.utils.ss58
++from bittensor.sp_core import Keypair
++from bittensor.wallet import Wallet
+ from ecies.config import EllipticCurve
+ from ecies.keys import PrivateKey as EciesPrivateKey
+ 
+@@ -124,7 +125,7 @@
+     async def set(
+         self,
+         data: bytes,
+-        wallet: bittensor_wallet.Wallet | None = None,
++        wallet: Wallet | None = None,
+     ):
+         info: SetCommitmentInfo = {
+             "fields": [
+@@ -145,7 +146,7 @@
+         data: str,
+         blocks_until_reveal: int = 360,
+         block_time: int | float = 12,
+-        wallet: bittensor_wallet.Wallet | None = None,
++        wallet: Wallet | None = None,
+     ) -> int:
+         encrypted, reveal_round = bittensor_drand.get_encrypted_commitment(
+             data, blocks_until_reveal, block_time
+@@ -192,10 +193,10 @@
+ 
+     async def register(
+         self,
+-        hotkey: bittensor_wallet.Keypair,
++        hotkey: Keypair,
+         *,
+         timeout: float | None = None,
+-        wallet: bittensor_wallet.Wallet | None = None,
++        wallet: Wallet | None = None,
+     ) -> None:
+         if self.subnet.netuid == 0:
+             extrinsic = (
+@@ -222,7 +223,7 @@
+         port: int,
+         certificate: NeuronCertificate | bytes | None = None,
+         timeout: float | None = None,
+-        wallet: bittensor_wallet.Wallet | None = None,
++        wallet: Wallet | None = None,
+     ):
+         if certificate:
+             if not isinstance(certificate, bytes):
+@@ -365,7 +366,7 @@
+         self,
+         weights: dict[int, float],
+         version_key: int = BITTENSOR_VERSION_INT,
+-        wallet: bittensor_wallet.Wallet | None = None,
++        wallet: Wallet | None = None,
+         mechanism_id: int = 0,
+     ) -> None:
+         weights = self._normalize(weights)
+@@ -390,7 +391,7 @@
+         self,
+         weights: dict[int, float],
+         version_key: int = BITTENSOR_VERSION_INT,
+-        wallet: bittensor_wallet.Wallet | None = None,
++        wallet: Wallet | None = None,
+         block_time: int | float = 12,
+         mechanism_id: int = 0,
+     ) -> int:
+--- a/turbobt/substrate/pallets/author.py
++++ b/turbobt/substrate/pallets/author.py
+@@ -3,8 +3,8 @@
+ import hashlib
+ import typing
+ 
+-import bittensor_wallet
+ import scalecodec
++from bittensor.sp_core import Keypair
+ 
+ from ..extrinsic import Extrinsic, ExtrinsicResult
+ from ._base import Pallet
+@@ -36,7 +36,7 @@
+         call_module: str,
+         call_function: str,
+         call_args: dict[str, typing.Any],
+-        key: bittensor_wallet.Keypair,
++        key: Keypair,
+         era: Era | None = DEFAULT_ERA,
+         nonce: int | None = None,
+     ) -> ExtrinsicResult:
+@@ -149,7 +149,7 @@
+     def _sign(
+         self,
+         call: scalecodec.types.GenericCall,
+-        keypair: bittensor_wallet.Keypair,
++        keypair: Keypair,
+         nonce: int | None,
+         era: dict,
+         block_hash: str,
+@@ -216,7 +216,7 @@
+                 ).digest()
+             )
+ 
+-        signature = keypair.sign(extrinsic_payload.data)
++        signature = keypair.sign(bytes(extrinsic_payload.data.data))
+ 
+         # https://github.com/polkadot-js/api/blob/cf7e2f01ac61be2c18523ea210c018f96c18ad3d/packages/api/src/submittable/createClass.ts#L247
+         extrinsic = self.substrate._registry.create_scale_object(
+--- a/turbobt/subtensor/pallets/admin_utils.py
++++ b/turbobt/subtensor/pallets/admin_utils.py
+@@ -1,4 +1,4 @@
+-import bittensor_wallet
++from bittensor.wallet import Wallet
+ 
+ from ...substrate.extrinsic import ExtrinsicResult
+ from ...substrate.pallets.author import DEFAULT_ERA, Era
+@@ -10,7 +10,7 @@
+         self,
+         netuid: int,
+         enabled: bool,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+@@ -41,7 +41,7 @@
+         self,
+         netuid: int,
+         tempo: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+@@ -72,7 +72,7 @@
+         self,
+         netuid: int,
+         weights_set_rate_limit: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+--- a/turbobt/subtensor/pallets/commitments.py
++++ b/turbobt/subtensor/pallets/commitments.py
+@@ -2,7 +2,7 @@
+ 
+ import typing
+ 
+-import bittensor_wallet
++from bittensor.wallet import Wallet
+ 
+ from ...substrate.extrinsic import ExtrinsicResult
+ from ...substrate.pallets.author import DEFAULT_ERA, Era
+@@ -53,7 +53,7 @@
+         self,
+         netuid: int,
+         info: SetCommitmentInfo,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+--- a/turbobt/subtensor/pallets/subtensor_module.py
++++ b/turbobt/subtensor/pallets/subtensor_module.py
+@@ -5,7 +5,8 @@
+ import typing
+ from enum import IntEnum
+ 
+-import bittensor_wallet
++from bittensor.sp_core import Keypair
++from bittensor.wallet import Wallet
+ 
+ from ...substrate.extrinsic import ExtrinsicResult
+ from ...substrate.pallets._types import StorageValue
+@@ -99,7 +100,7 @@
+         hotkey: str,
+         netuid: int,
+         amount_staked: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         return await self.subtensor.author.submitAndWatchExtrinsic(
+@@ -118,7 +119,7 @@
+         self,
+         netuid: int,
+         hotkey: str,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+@@ -150,7 +151,7 @@
+         netuid: int,
+         commit: bytes,
+         reveal_round: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         return await self.subtensor.author.submitAndWatchExtrinsic(
+@@ -173,7 +174,7 @@
+         commit: bytes,
+         reveal_round: int,
+         commit_reveal_version: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+@@ -191,7 +192,7 @@
+         :param commit_reveal_version: Commit-reveal version (e.g., 4 for CRV3). See commit_crv3_weights.
+         :type commit_reveal_version: int
+         :param wallet: Wallet whose hotkey signs the extrinsic.
+-        :type wallet: bittensor_wallet.Wallet
++        :type wallet: Wallet
+         :param era: Optional transaction era/mortality.
+         :type era: Era | None
+         :return: Asynchronous result of the extrinsic submission.
+@@ -219,7 +220,7 @@
+         mechanism_id: int,
+         reveal_round: int,
+         commit_reveal_version: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+@@ -236,7 +237,7 @@
+         :param commit_reveal_version: Commit-reveal version (e.g., 4 for CRV3).
+         :type commit_reveal_version: int
+         :param wallet: Wallet whose hotkey signs the extrinsic.
+-        :type wallet: bittensor_wallet.Wallet
++        :type wallet: Wallet
+         :param era: Optional transaction era/mortality.
+         :type era: Era | None
+         :return: Asynchronous result of the extrinsic submission.
+@@ -259,9 +260,9 @@
+ 
+     async def register_network(
+         self,
+-        hotkey: bittensor_wallet.Keypair,
++        hotkey: Keypair,
+         mechid: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         return await self.subtensor.author.submitAndWatchExtrinsic(
+@@ -280,7 +281,7 @@
+         hotkey: str,
+         netuid: int,
+         amount_unstaked: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         return await self.subtensor.author.submitAndWatchExtrinsic(
+@@ -298,7 +299,7 @@
+     async def root_register(
+         self,
+         hotkey: str,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+@@ -307,7 +308,7 @@
+         :param hotkey: Hotkey to be registered to the network.
+         :type hotkey: str
+         :param wallet: The wallet associated with the neuron to be registered.
+-        :type wallet: bittensor_wallet.Wallet
++        :type wallet: Wallet
+         :return: An asynchronous result of the extrinsic submission.
+         :rtype: ExtrinsicResult
+         """
+@@ -327,7 +328,7 @@
+         netuid: int,
+         ip: str,
+         port: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         protocol: int,
+         version: int,
+         placeholder1: int = 0,
+@@ -344,7 +345,7 @@
+         :param port: The port number for the Axon endpoint.
+         :type port: int
+         :param wallet: The wallet associated with the Axon service.
+-        :type wallet: bittensor_wallet.Wallet
++        :type wallet: Wallet
+         :param version: The Bittensor version identifier.
+         :type version: int
+         :param placeholder1: Placeholder for further extra params.
+@@ -380,7 +381,7 @@
+         ip: str,
+         port: int,
+         certificate: bytes,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         protocol: int,
+         version: int,
+         placeholder1: int = 0,
+@@ -397,7 +398,7 @@
+         :param port: The port number for the Axon endpoint.
+         :type port: int
+         :param wallet: The wallet associated with the Axon service.
+-        :type wallet: bittensor_wallet.Wallet
++        :type wallet: Wallet
+         :param certificate: The certificate for securing the Axon endpoint.
+         :type certificate: bytes
+         :param protocol: Axon protocol. TCP, UDP, other.
+@@ -438,7 +439,7 @@
+         dests: list[int],
+         weights: list[int],
+         version_key: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+@@ -456,7 +457,7 @@
+         :param version_key: Weights version key indicating encoding/version.
+         :type version_key: int
+         :param wallet: Wallet whose hotkey signs the extrinsic.
+-        :type wallet: bittensor_wallet.Wallet
++        :type wallet: Wallet
+         :param era: Optional transaction era/mortality.
+         :type era: Era | None
+         :return: Asynchronous result of the extrinsic submission.
+@@ -484,7 +485,7 @@
+         mechanism_id: int,
+         weights: list[int],
+         version_key: int,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+@@ -501,7 +502,7 @@
+         :param version_key: Weights version key indicating encoding/version.
+         :type version_key: int
+         :param wallet: Wallet whose hotkey signs the extrinsic.
+-        :type wallet: bittensor_wallet.Wallet
++        :type wallet: Wallet
+         :param era: Optional transaction era/mortality.
+         :type era: Era | None
+         :return: Asynchronous result of the extrinsic submission.
+--- a/turbobt/subtensor/pallets/sudo.py
++++ b/turbobt/subtensor/pallets/sudo.py
+@@ -1,4 +1,4 @@
+-import bittensor_wallet
++from bittensor.wallet import Wallet
+ 
+ from ...substrate.extrinsic import ExtrinsicResult
+ from ...substrate.pallets.author import DEFAULT_ERA, Era
+@@ -11,7 +11,7 @@
+         call_module: str,
+         call_function: str,
+         call_args: dict,
+-        wallet: bittensor_wallet.Wallet,
++        wallet: Wallet,
+         era: Era | None = DEFAULT_ERA,
+     ) -> ExtrinsicResult:
+         """
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -18,7 +18,7 @@
+ requires-python = ">=3.11"
+ dependencies = [
+     "bittensor-drand~=1.0.0",
+-    "bittensor-wallet~=4.0.0",
++    "bittensor==11.1.0",
+     "eciespy~=0.4.6",
+     "httpx~=0.26.0",
+     "scalecodec~=1.2.12",
+@@ -30,7 +30,7 @@
+     "LICENSE",
+ ]
+ dynamic = []
+-version = "1.3.1"
++version = "1.3.1+validity.sdk11"
+ 
+ [project.urls]
+ Homepage = "https://github.com/bactensor/turbobt"

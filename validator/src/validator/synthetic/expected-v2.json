@@ -1,0 +1,75 @@
+{
+  "label_version": "fixture-labels-v2",
+  "snapshot_sha256": "5c2b82d92a65081f46b0a1e761b6cae290eb74b96829fd50111b1f5d7e3a5e21",
+  "cases": [
+    {
+      "provider_query": {
+        "provider_ref": "fictional-1001",
+        "license_number": "TEST-1001",
+        "jurisdiction": "ZZ-TEST",
+        "profession": "RN"
+      },
+      "identity_resolution": "matched",
+      "availability": "available",
+      "finding": "suspended",
+      "record_ids": [
+        "fixture-record-1"
+      ]
+    },
+    {
+      "provider_query": {
+        "provider_ref": "fictional-1002",
+        "license_number": "TEST-1002",
+        "jurisdiction": "ZZ-TEST",
+        "profession": "RN"
+      },
+      "identity_resolution": "matched",
+      "availability": "available",
+      "finding": "active",
+      "record_ids": [
+        "fixture-record-2"
+      ]
+    },
+    {
+      "provider_query": {
+        "provider_ref": "fictional-1003",
+        "license_number": "TEST-1003",
+        "jurisdiction": "ZZ-TEST",
+        "profession": "RN"
+      },
+      "identity_resolution": "ambiguous",
+      "availability": "available",
+      "finding": null,
+      "record_ids": [
+        "fixture-record-3",
+        "fixture-record-4"
+      ]
+    },
+    {
+      "provider_query": {
+        "provider_ref": "fictional-1004",
+        "license_number": "TEST-1004",
+        "jurisdiction": "ZZ-TEST",
+        "profession": "RN"
+      },
+      "identity_resolution": "matched",
+      "availability": "available",
+      "finding": "active",
+      "record_ids": [
+        "fixture-record-5"
+      ]
+    },
+    {
+      "provider_query": {
+        "provider_ref": "fictional-1005",
+        "license_number": "TEST-1005",
+        "jurisdiction": "ZZ-TEST",
+        "profession": "RN"
+      },
+      "identity_resolution": "unresolved",
+      "availability": "unavailable",
+      "finding": null,
+      "record_ids": []
+    }
+  ]
+}

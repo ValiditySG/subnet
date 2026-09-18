@@ -1,0 +1,96 @@
+name: validity-testnet
+
+x-validator-environment: &validator-environment
+  VALIDATOR_NETWORK: test
+  VALIDATOR_MODE: synthetic
+  VALIDATOR_NETUID: "${VALIDATOR_NETUID:-568}"
+  VALIDATOR_CHAIN_GENESIS: "${VALIDATOR_CHAIN_GENESIS:?Set the verified testnet genesis hash}"
+  VALIDATOR_TEMPO: "${VALIDATOR_TEMPO:?Set the actual subnet tempo}"
+  VALIDATOR_WALLET_PATH: /wallets
+  VALIDATOR_WALLET_NAME: "${VALIDATOR_WALLET_NAME:-default}"
+  VALIDATOR_HOTKEY_NAME: "${VALIDATOR_HOTKEY_NAME:-default}"
+  VALIDATOR_LEDGER_PATH: /var/lib/validity/credentials.sqlite3
+  VALIDATOR_PYLON_SERVICE_ADDRESS: http://pylon:8000
+  VALIDATOR_PYLON_OPEN_ACCESS_TOKEN: "${VALIDATOR_PYLON_OPEN_ACCESS_TOKEN:?}"
+  VALIDATOR_PYLON_IDENTITY_NAME: validator
+  VALIDATOR_PYLON_IDENTITY_TOKEN: "${VALIDATOR_PYLON_IDENTITY_TOKEN:?}"
+  HIPPIUS_ENABLED: "${HIPPIUS_ENABLED:-true}"
+  HIPPIUS_BUCKET: "${HIPPIUS_BUCKET:?}"
+  # Preflight validates credentials when publishing is enabled.
+  HIPPIUS_ACCESS_KEY_ID: "${HIPPIUS_ACCESS_KEY_ID:-}"
+  HIPPIUS_SECRET_ACCESS_KEY: "${HIPPIUS_SECRET_ACCESS_KEY:-}"
+  HIPPIUS_VERIFY_READBACK: "${HIPPIUS_VERIFY_READBACK:-true}"
+  OTEL_SDK_DISABLED: "true"
+  ENVIRONMENT: testnet
+
+services:
+  pylon:
+    image: "${PYLON_IMAGE:?Set the compatible chain-service image digest; see docs/chain-service.md}"
+    restart: unless-stopped
+    init: true
+    environment:
+      PYLON_BITTENSOR_NETWORK: wss://test.finney.opentensor.ai:443
+      PYLON_BITTENSOR_ARCHIVE_NETWORK: wss://test.finney.opentensor.ai:443
+      PYLON_OPEN_ACCESS_TOKEN: "${VALIDATOR_PYLON_OPEN_ACCESS_TOKEN:?}"
+      PYLON_METRICS_TOKEN: "${PYLON_METRICS_TOKEN:?}"
+      PYLON_IDENTITIES: '["validator"]'
+      PYLON_BITTENSOR_WALLET_PATH: /wallets
+      PYLON_BLOCK_DURATION_SECONDS: "12"
+      PYLON_DATABASE_PATH: /state/pylon.db
+      PYLON_RECENT_OBJECTS_SOFT_LIMIT_BLOCKS: "5"
+      PYLON_RECENT_OBJECTS_HARD_LIMIT_BLOCKS: "10"
+      PYLON_RECENT_OBJECTS_REFRESH_LEAD_BLOCKS: "2"
+      PYLON_ID_VALIDATOR_WALLET_NAME: "${VALIDATOR_WALLET_NAME:-default}"
+      PYLON_ID_VALIDATOR_HOTKEY_NAME: "${VALIDATOR_HOTKEY_NAME:-default}"
+      PYLON_ID_VALIDATOR_NETUID: "${VALIDATOR_NETUID:-568}"
+      PYLON_ID_VALIDATOR_TOKEN: "${VALIDATOR_PYLON_IDENTITY_TOKEN:?}"
+    volumes:
+      - ${VALIDATOR_WALLET_PATH:-~/.bittensor/wallets}:/wallets:ro
+      - pylon-state:/state
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging: &logging
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+    # No published sidecar or metrics ports.
+
+  validator:
+    image: "${VALIDATOR_IMAGE:?Set an immutable validator image digest}"
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    read_only: true
+    stop_grace_period: 45s
+    tmpfs: [/tmp:size=64m,mode=1777]
+    environment: *validator-environment
+    volumes:
+      - ${VALIDATOR_WALLET_PATH:-~/.bittensor/wallets}:/wallets:ro
+      - validator-state:/var/lib/validity
+    depends_on: [pylon]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    pids_limit: 128
+    logging: *logging
+    healthcheck:
+      test: [CMD, python, -m, validator.health]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
+
+  preflight:
+    image: "${VALIDATOR_IMAGE:?Set an immutable validator image digest}"
+    profiles: [tools]
+    user: "10001:10001"
+    read_only: true
+    environment: *validator-environment
+    volumes:
+      - ${VALIDATOR_WALLET_PATH:-~/.bittensor/wallets}:/wallets:ro
+    entrypoint: [python, -m, validator.preflight]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging: *logging
+
+volumes:
+  validator-state:
+  pylon-state:

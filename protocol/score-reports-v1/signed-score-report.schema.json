@@ -1,0 +1,189 @@
+{
+  "$defs": {
+    "ChainId": {
+      "pattern": "^0x[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "Digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "HotkeyAddress": {
+      "maxLength": 48,
+      "minLength": 47,
+      "type": "string"
+    },
+    "MinerScore": {
+      "additionalProperties": false,
+      "description": "Integer totals preserve the exact raw score before reward normalization.",
+      "properties": {
+        "miner_hotkey": {
+          "$ref": "#/$defs/HotkeyAddress"
+        },
+        "miner_uid": {
+          "maximum": 65535,
+          "minimum": 0,
+          "title": "Miner Uid",
+          "type": "integer"
+        },
+        "score_sum": {
+          "title": "Score Sum",
+          "type": "integer"
+        },
+        "assigned_tasks": {
+          "maximum": 100000,
+          "minimum": 1,
+          "title": "Assigned Tasks",
+          "type": "integer"
+        },
+        "correct_tasks": {
+          "minimum": 0,
+          "title": "Correct Tasks",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "miner_hotkey",
+        "miner_uid",
+        "score_sum",
+        "assigned_tasks",
+        "correct_tasks"
+      ],
+      "title": "MinerScore",
+      "type": "object"
+    },
+    "ScoreReport": {
+      "additionalProperties": false,
+      "description": "One completed synthetic RN round, grouped by chain epoch and evaluation context.",
+      "properties": {
+        "schema_version": {
+          "const": "validity.score-report.v1",
+          "default": "validity.score-report.v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "scope": {
+          "const": "synthetic-rn",
+          "default": "synthetic-rn",
+          "title": "Scope",
+          "type": "string"
+        },
+        "chain_genesis": {
+          "$ref": "#/$defs/ChainId"
+        },
+        "netuid": {
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Netuid",
+          "type": "integer"
+        },
+        "validator_hotkey": {
+          "$ref": "#/$defs/HotkeyAddress"
+        },
+        "instance_id": {
+          "format": "uuid",
+          "title": "Instance Id",
+          "type": "string"
+        },
+        "round_id": {
+          "minimum": 1,
+          "title": "Round Id",
+          "type": "integer"
+        },
+        "epoch_start": {
+          "minimum": 0,
+          "title": "Epoch Start",
+          "type": "integer"
+        },
+        "epoch_end": {
+          "minimum": 0,
+          "title": "Epoch End",
+          "type": "integer"
+        },
+        "completed_block": {
+          "minimum": 1,
+          "title": "Completed Block",
+          "type": "integer"
+        },
+        "policy_version": {
+          "const": "rn-equal-cases-v1",
+          "default": "rn-equal-cases-v1",
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "source_version": {
+          "pattern": "^fixture-board-v[12]$",
+          "title": "Source Version",
+          "type": "string"
+        },
+        "source_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "completed_at": {
+          "format": "date-time",
+          "title": "Completed At",
+          "type": "string"
+        },
+        "miners": {
+          "items": {
+            "$ref": "#/$defs/MinerScore"
+          },
+          "maxItems": 256,
+          "minItems": 1,
+          "title": "Miners",
+          "type": "array"
+        }
+      },
+      "required": [
+        "chain_genesis",
+        "netuid",
+        "validator_hotkey",
+        "instance_id",
+        "round_id",
+        "epoch_start",
+        "epoch_end",
+        "completed_block",
+        "source_version",
+        "source_digest",
+        "started_at",
+        "completed_at",
+        "miners"
+      ],
+      "title": "ScoreReport",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A report authenticated independently of the storage account.",
+  "properties": {
+    "report": {
+      "$ref": "#/$defs/ScoreReport"
+    },
+    "report_id": {
+      "$ref": "#/$defs/Digest"
+    },
+    "signature_algorithm": {
+      "const": "sr25519",
+      "default": "sr25519",
+      "title": "Signature Algorithm",
+      "type": "string"
+    },
+    "signature": {
+      "pattern": "^[0-9a-f]{128}$",
+      "title": "Signature",
+      "type": "string"
+    }
+  },
+  "required": [
+    "report",
+    "report_id",
+    "signature"
+  ],
+  "title": "SignedScoreReport",
+  "type": "object"
+}

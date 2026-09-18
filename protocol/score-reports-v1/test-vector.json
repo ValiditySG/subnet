@@ -1,0 +1,42 @@
+{
+  "public_development_key": "//Alice",
+  "canonical_report_utf8": "{\"chain_genesis\":\"0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"completed_at\":\"2026-09-16T00:00:00Z\",\"completed_block\":120,\"epoch_end\":460,\"epoch_start\":100,\"instance_id\":\"00000000-0000-0000-0000-000000000001\",\"miners\":[{\"assigned_tasks\":5,\"correct_tasks\":4,\"miner_hotkey\":\"5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy\",\"miner_uid\":2,\"score_sum\":-1},{\"assigned_tasks\":5,\"correct_tasks\":4,\"miner_hotkey\":\"5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw\",\"miner_uid\":3,\"score_sum\":-1}],\"netuid\":2,\"policy_version\":\"rn-equal-cases-v1\",\"round_id\":1,\"schema_version\":\"validity.score-report.v1\",\"scope\":\"synthetic-rn\",\"source_digest\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"source_version\":\"fixture-board-v1\",\"started_at\":\"2026-09-16T00:00:00Z\",\"validator_hotkey\":\"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY\"}",
+  "envelope": {
+    "report": {
+      "schema_version": "validity.score-report.v1",
+      "scope": "synthetic-rn",
+      "chain_genesis": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "netuid": 2,
+      "validator_hotkey": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+      "instance_id": "00000000-0000-0000-0000-000000000001",
+      "round_id": 1,
+      "epoch_start": 100,
+      "epoch_end": 460,
+      "completed_block": 120,
+      "policy_version": "rn-equal-cases-v1",
+      "source_version": "fixture-board-v1",
+      "source_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "started_at": "2026-09-16T00:00:00Z",
+      "completed_at": "2026-09-16T00:00:00Z",
+      "miners": [
+        {
+          "miner_hotkey": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy",
+          "miner_uid": 2,
+          "score_sum": -1,
+          "assigned_tasks": 5,
+          "correct_tasks": 4
+        },
+        {
+          "miner_hotkey": "5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw",
+          "miner_uid": 3,
+          "score_sum": -1,
+          "assigned_tasks": 5,
+          "correct_tasks": 4
+        }
+      ]
+    },
+    "report_id": "6a22f8ed9eb185c20f7e1e2e705a4870972c87cf3938e0233e07bf6225b718de",
+    "signature_algorithm": "sr25519",
+    "signature": "581163971cd38d0cdbe39e224f94e317b7117e73a359d806e0967151e71e8735e2aad374ef55cd19df9ee7b6967c02c0c4b6108810c273d777891ff7092e3686"
+  }
+}
