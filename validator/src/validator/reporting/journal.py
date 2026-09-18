@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from bittensor_wallet import Keypair
+from bittensor.sp_core import Keypair
 
 from validator.credentials.audit import replay
 from validator.credentials.evaluation import POLICY, ROSTER, score_response

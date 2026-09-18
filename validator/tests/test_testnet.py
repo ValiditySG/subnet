@@ -12,18 +12,20 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
-from bittensor_wallet import Keypair
-from nexus.v1 import Neuron
+from bittensor.sp_core import Keypair
+from click.testing import CliRunner
+from nexus.v1 import Neuron, WeightSetterNode
 from pydantic import ValidationError
 
 from tests.test_credentials import make_request, make_response
 from validator.chain import ChainSettings, registered_neurons
 from validator.config import Settings
-from validator.credentials.pipeline import public_http_neurons
+from validator.credentials.pipeline import EvaluationLoop, public_http_neurons
 from validator.credentials.transport import (
     MAX_EXCHANGE_BYTES,
     RESPONSE_DOMAIN,
     BoundResponse,
+    CredentialHTTP,
     SignedRequest,
     SignedResponse,
     TaskBinding,
@@ -31,7 +33,9 @@ from validator.credentials.transport import (
     exchange,
     target_url,
 )
+from validator.main import Validator, main
 from validator.operator import check_env_file, exclusive_state
+from validator.reporting.publisher import PublishReports
 
 VALIDATOR = Keypair.create_from_uri("//Alice")
 MINER = Keypair.create_from_uri("//Bob")
@@ -171,6 +175,41 @@ def test_operator_config_defaults_to_testnet_568_and_rejects_other_networks(
     del config["netuid"]
     defaults = Settings.model_validate(config)
     assert (defaults.network, defaults.netuid) == ("test", 568)
+
+
+@pytest.mark.parametrize("publishing", [True, False])
+def test_chain_only_startup_keeps_evaluation_and_weights_without_storage_credentials(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, publishing: bool
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    for key, value in {
+        "VALIDATOR_CHAIN_GENESIS": GENESIS,
+        "VALIDATOR_TEMPO": "360",
+        "VALIDATOR_LEDGER_PATH": str(tmp_path / "credentials.sqlite3"),
+        "HIPPIUS_BUCKET": "test-scores",
+        "HIPPIUS_ACCESS_KEY_ID": "",
+        "HIPPIUS_SECRET_ACCESS_KEY": "",
+        "OTEL_SDK_DISABLED": "true",
+    }.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.delenv("HIPPIUS_ENABLED", raising=False)
+    if not publishing:
+        monkeypatch.setenv("HIPPIUS_ENABLED", "false")
+    validator = Validator(Settings.model_validate({}))
+    nodes = {port.owner_node for port in (*validator.subnet_flow.sources, *validator.subnet_flow.sinks)}
+    assert any(isinstance(node, EvaluationLoop) for node in nodes)
+    assert any(isinstance(node, CredentialHTTP) for node in nodes)
+    assert any(isinstance(node, WeightSetterNode) for node in nodes)
+    assert any(isinstance(node, PublishReports) for node in nodes) == publishing
+    run = MagicMock()
+    monkeypatch.setattr(Validator, "run", run)
+    result = CliRunner().invoke(main)
+    if publishing:
+        assert isinstance(result.exception, ValidationError)
+        run.assert_not_called()
+    else:
+        assert result.exit_code == 0, result.output
+        run.assert_called_once()
 
 
 def test_chain_gate_rejects_wrong_subnet_absent_registration_and_revoked_permit(

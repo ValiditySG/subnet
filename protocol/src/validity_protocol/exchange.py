@@ -6,7 +6,7 @@ import hashlib
 import json
 from typing import Annotated, Literal
 
-from bittensor_wallet import Keypair
+from bittensor.sp_core import Keypair
 from pydantic import Field
 
 from validity_protocol.credentials import CredentialRequest, CredentialResponse, Digest, WireModel

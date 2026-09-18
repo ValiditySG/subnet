@@ -78,9 +78,10 @@ class Validator(NexusValidator):
         self.connect(evaluation.error, errors.sink)
         self.connect(communicator.error, errors.sink)
         reporting = ReportingSettings.model_validate({})
-        publisher = PublishReports(settings.ledger_path, settings.netuid, reporting)
-        report_clock = BlockBeatNode("score-report-clock", polling_interval=timedelta(seconds=5))
-        self.connect(report_clock.source, publisher.sink)
+        if reporting.enabled:
+            publisher = PublishReports(settings.ledger_path, settings.netuid, reporting)
+            report_clock = BlockBeatNode("score-report-clock", polling_interval=timedelta(seconds=5))
+            self.connect(report_clock.source, publisher.sink)
 
 
 def _setup_sentry() -> None:
@@ -114,8 +115,11 @@ def main(env_file: Path | None) -> None:
     setup_otel(OtelSettings())
     _setup_sentry()
     settings = Settings.model_validate({})
-    ReportingSettings.model_validate({})
-    StorageCredentials.model_validate({})
+    reporting = ReportingSettings.model_validate({})
+    if reporting.enabled:
+        StorageCredentials.model_validate({})
+    else:
+        logging.getLogger(__name__).info("Hippius publishing disabled; evaluation and chain weights remain enabled")
     with exclusive_state(settings.ledger_path):
         Validator.run(settings_class=Settings)
 

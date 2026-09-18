@@ -14,7 +14,7 @@ from uuid import UUID
 
 import httpx
 import pytest
-from bittensor_wallet import Keypair
+from bittensor.sp_core import Keypair
 from botocore.response import StreamingBody
 from botocore.stub import Stubber
 from pydantic import ValidationError

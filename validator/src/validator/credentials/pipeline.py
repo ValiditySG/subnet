@@ -8,7 +8,6 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, override
 
-from bittensor_wallet import Wallet
 from nexus.v1 import (
     Actor,
     ActorBuilder,
@@ -51,6 +50,7 @@ from nexus.v1 import (
     get_logger,
 )
 from opentelemetry import metrics
+from validity_protocol.identity import load_signing_key
 
 from validator.chain import registered_neurons
 from validator.config import Settings
@@ -204,9 +204,7 @@ class EvaluationActor(Actor):
         settings = self.node.settings
         if settings is None:
             raise ValueError("Operator settings are required")
-        key = Wallet(
-            path=str(settings.wallet_path), name=settings.wallet_name, hotkey=settings.hotkey_name
-        ).get_hotkey()
+        key = load_signing_key(settings.wallet_path, settings.wallet_name, settings.hotkey_name)
         reporting = ReportingSettings.model_validate({})
         ReportJournal(
             self.node.ledger.path, settings.chain_genesis, self.node.netuid, key, reporting.destination

@@ -14,32 +14,39 @@ x-validator-environment: &validator-environment
   VALIDATOR_PYLON_OPEN_ACCESS_TOKEN: "${VALIDATOR_PYLON_OPEN_ACCESS_TOKEN:?}"
   VALIDATOR_PYLON_IDENTITY_NAME: validator
   VALIDATOR_PYLON_IDENTITY_TOKEN: "${VALIDATOR_PYLON_IDENTITY_TOKEN:?}"
+  HIPPIUS_ENABLED: "${HIPPIUS_ENABLED:-true}"
   HIPPIUS_BUCKET: "${HIPPIUS_BUCKET:?}"
-  HIPPIUS_ACCESS_KEY_ID: "${HIPPIUS_ACCESS_KEY_ID:?}"
-  HIPPIUS_SECRET_ACCESS_KEY: "${HIPPIUS_SECRET_ACCESS_KEY:?}"
+  # Preflight validates credentials when publishing is enabled.
+  HIPPIUS_ACCESS_KEY_ID: "${HIPPIUS_ACCESS_KEY_ID:-}"
+  HIPPIUS_SECRET_ACCESS_KEY: "${HIPPIUS_SECRET_ACCESS_KEY:-}"
   HIPPIUS_VERIFY_READBACK: "${HIPPIUS_VERIFY_READBACK:-true}"
   OTEL_SDK_DISABLED: "true"
   ENVIRONMENT: testnet
 
 services:
   pylon:
-    image: backenddevelopersltd/bittensor-pylon@sha256:19372a57b1316b340971094aa067a6e39a957d6903dec2cd8b7f1d0335d9e0ad
+    image: "${PYLON_IMAGE:?Set the compatible chain-service image digest; see docs/chain-service.md}"
     restart: unless-stopped
     init: true
     environment:
       PYLON_BITTENSOR_NETWORK: wss://test.finney.opentensor.ai:443
+      PYLON_BITTENSOR_ARCHIVE_NETWORK: wss://test.finney.opentensor.ai:443
       PYLON_OPEN_ACCESS_TOKEN: "${VALIDATOR_PYLON_OPEN_ACCESS_TOKEN:?}"
       PYLON_METRICS_TOKEN: "${PYLON_METRICS_TOKEN:?}"
       PYLON_IDENTITIES: '["validator"]'
       PYLON_BITTENSOR_WALLET_PATH: /wallets
-      PYLON_TEMPO: "${VALIDATOR_TEMPO:?}"
       PYLON_BLOCK_DURATION_SECONDS: "12"
+      PYLON_DATABASE_PATH: /state/pylon.db
+      PYLON_RECENT_OBJECTS_SOFT_LIMIT_BLOCKS: "5"
+      PYLON_RECENT_OBJECTS_HARD_LIMIT_BLOCKS: "10"
+      PYLON_RECENT_OBJECTS_REFRESH_LEAD_BLOCKS: "2"
       PYLON_ID_VALIDATOR_WALLET_NAME: "${VALIDATOR_WALLET_NAME:-default}"
       PYLON_ID_VALIDATOR_HOTKEY_NAME: "${VALIDATOR_HOTKEY_NAME:-default}"
       PYLON_ID_VALIDATOR_NETUID: "${VALIDATOR_NETUID:-568}"
       PYLON_ID_VALIDATOR_TOKEN: "${VALIDATOR_PYLON_IDENTITY_TOKEN:?}"
     volumes:
       - ${VALIDATOR_WALLET_PATH:-~/.bittensor/wallets}:/wallets:ro
+      - pylon-state:/state
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
     logging: &logging
@@ -86,3 +93,4 @@ services:
 
 volumes:
   validator-state:
+  pylon-state:

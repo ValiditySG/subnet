@@ -7,7 +7,7 @@ from time import perf_counter
 from typing import override
 
 import httpx
-from bittensor_wallet import Keypair, Wallet
+from bittensor.sp_core import Keypair
 from nexus.v1 import (
     Actor,
     ActorBuilder,
@@ -35,6 +35,7 @@ from validity_protocol.exchange import SignedRequest as SignedRequest
 from validity_protocol.exchange import SignedResponse as SignedResponse
 from validity_protocol.exchange import TaskBinding as TaskBinding
 from validity_protocol.exchange import canonical as canonical
+from validity_protocol.identity import load_signing_key
 
 from validator.config import Settings
 from validator.credentials.protocol import CredentialRequest, CredentialResponse
@@ -117,7 +118,7 @@ class CredentialHTTPActor(CommunicatorActor[CredentialRequest, CredentialRespons
     @override
     def on_start(self) -> None:
         s = self.settings
-        self.key = Wallet(path=str(s.wallet_path), name=s.wallet_name, hotkey=s.hotkey_name).get_hotkey()
+        self.key = load_signing_key(s.wallet_path, s.wallet_name, s.hotkey_name)
         self.client = httpx.Client(trust_env=False, follow_redirects=False)
 
     @override

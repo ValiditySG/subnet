@@ -8,8 +8,8 @@ from pathlib import Path
 import click
 import structlog
 import uvicorn
-from bittensor_wallet import Wallet
 from dotenv import load_dotenv
+from validity_protocol.identity import load_signing_key
 
 from validity_miner.config import Settings
 from validity_miner.http import MinerApp
@@ -51,9 +51,7 @@ def main(env_file: Path | None) -> None:
                 raise ValueError("The .env file must have mode 0600")
             load_dotenv(selected)
         settings = Settings.model_validate({})
-        key = Wallet(
-            path=str(settings.wallet_path), name=settings.wallet_name, hotkey=settings.hotkey_name
-        ).get_hotkey()
+        key = load_signing_key(settings.wallet_path, settings.wallet_name, settings.hotkey_name)
         settings.journal_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         with settings.journal_path.with_suffix(".lock").open("a") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

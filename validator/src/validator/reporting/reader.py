@@ -11,10 +11,10 @@ from urllib.parse import parse_qs, urlsplit
 
 import click
 import structlog
-from bittensor_wallet.utils import is_valid_ss58_address
 from dotenv import load_dotenv
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from validity_protocol.identity import is_valid_ss58_address
 
 from validator.logging_config import LoggingSettings, configure_logging
 from validator.operator import check_env_file

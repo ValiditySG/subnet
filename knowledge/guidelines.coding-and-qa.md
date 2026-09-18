@@ -7,7 +7,7 @@
 - basedpyright strict mode
 - ruff for linting and formatting
 - pytest
-- nexus as a framework for validator (no bittensor dependency)
+- actor runtime for the validator; Bittensor 11.1.0 for its bundled wallet API
 - pylon for subtensor communication
 
 Read nexus and pylon source from .venv when you need to research them - after having installed them first.

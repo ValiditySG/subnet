@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import click
-from bittensor_wallet import Wallet
 from dotenv import load_dotenv
+from validity_protocol.identity import load_signing_key
 
 from validator.chain import registered_neurons
 from validator.config import Settings
@@ -32,24 +32,24 @@ def main(env_file: Path | None) -> None:
             load_dotenv(env_file)
         settings = Settings.model_validate({})
         reporting = ReportingSettings.model_validate({})
-        credentials = StorageCredentials.model_validate({})
         FixtureCatalog.load(settings.fixture_dir)
-        key = Wallet(
-            path=str(settings.wallet_path), name=settings.wallet_name, hotkey=settings.hotkey_name
-        ).get_hotkey()
+        key = load_signing_key(settings.wallet_path, settings.wallet_name, settings.hotkey_name)
         neurons = registered_neurons(settings.netuid, key.ss58_address)
-        store = HippiusStore.connect(reporting.bucket, credentials)
-        try:
-            store.read(f"{key.ss58_address}/0.json")
-        finally:
-            store.client.close()
+        if reporting.enabled:
+            credentials = StorageCredentials.model_validate({})
+            store = HippiusStore.connect(reporting.bucket, credentials)
+            try:
+                store.read(f"{key.ss58_address}/0.json")
+            finally:
+                store.client.close()
     except Exception as exc:
         raise click.ClickException(
             f"Preflight failed ({type(exc).__name__}); check private operator configuration"
         ) from None
     click.echo(
         f"Preflight passed: netuid={settings.netuid}, validator={key.ss58_address}, "
-        f"public_endpoints={len(public_http_neurons(neurons))}, scope=synthetic-rn"
+        f"public_endpoints={len(public_http_neurons(neurons))}, scope=synthetic-rn, "
+        f"hippius={'read-checked' if reporting.enabled else 'disabled'}"
     )
 
 

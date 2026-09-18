@@ -10,8 +10,9 @@ path = Path('.env')
 if path.stat().st_mode & 0o077:
     raise SystemExit('.env must have mode 0600')
 entries = dict(line.split('=', 1) for line in path.read_text().splitlines() if line and not line.startswith('#') and '=' in line)
-if not re.fullmatch(r'[^\s]+@sha256:[0-9a-f]{64}', entries.get('VALIDATOR_IMAGE', '')):
-    raise SystemExit('VALIDATOR_IMAGE must reference a registry image by sha256 digest')
+for name in ('VALIDATOR_IMAGE', 'PYLON_IMAGE'):
+    if not re.fullmatch(r'[^\s]+@sha256:[0-9a-f]{64}', entries.get(name, '')):
+        raise SystemExit(f'{name} must reference a registry image by sha256 digest')
 PYENV
 docker compose config --quiet
 docker compose pull pylon validator preflight

@@ -1,0 +1,2 @@
+# Reviewed with the Bittensor version pinned by validator, miner and protocol.
+bittensor==11.1.0

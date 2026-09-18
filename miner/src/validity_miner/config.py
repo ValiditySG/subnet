@@ -3,9 +3,9 @@
 from pathlib import Path
 from typing import Literal
 
-from bittensor_wallet.utils import is_valid_ss58_address
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from validity_protocol.identity import is_valid_ss58_address
 
 
 class Settings(BaseSettings):

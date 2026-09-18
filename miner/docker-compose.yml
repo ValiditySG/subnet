@@ -1,11 +1,12 @@
 name: validity-testnet-miner
 services:
   pylon:
-    image: backenddevelopersltd/bittensor-pylon@sha256:19372a57b1316b340971094aa067a6e39a957d6903dec2cd8b7f1d0335d9e0ad
+    image: "${PYLON_IMAGE:?Set the compatible chain-service image digest; see docs/chain-service.md}"
     restart: unless-stopped
     init: true
     environment:
       PYLON_BITTENSOR_NETWORK: wss://test.finney.opentensor.ai:443
+      PYLON_BITTENSOR_ARCHIVE_NETWORK: wss://test.finney.opentensor.ai:443
       PYLON_OPEN_ACCESS_TOKEN: "${MINER_PYLON_OPEN_ACCESS_TOKEN:?}"
       PYLON_METRICS_TOKEN: "${PYLON_METRICS_TOKEN:?}"
       PYLON_IDENTITIES: '[]'

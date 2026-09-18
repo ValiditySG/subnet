@@ -7,7 +7,6 @@ from pathlib import Path
 from time import perf_counter
 from typing import override
 
-from bittensor_wallet import Wallet
 from nexus.v1 import (
     Actor,
     ActorBuilder,
@@ -24,6 +23,7 @@ from nexus.v1 import (
     get_logger,
 )
 from pydantic import Field
+from validity_protocol.identity import load_signing_key
 
 from validator.config import WalletSettings
 from validator.credentials.evaluation import EvaluationLedger
@@ -39,8 +39,9 @@ logger = get_logger(__name__)
 
 
 class ReportingSettings(WalletSettings):
-    """Mandatory Hippius publishing with an explicit bucket and .env credential pair."""
+    """Hippius publishing is enabled by default; chain-only tests can disable it."""
 
+    enabled: bool = Field(default=True, validation_alias="HIPPIUS_ENABLED")
     bucket: str = Field(min_length=3, validation_alias="HIPPIUS_BUCKET")
     verify_readback: bool = Field(default=True, validation_alias="HIPPIUS_VERIFY_READBACK")
     chain_genesis: ChainId
@@ -126,9 +127,7 @@ class PublishReportsActor(ConsumerActor[BlockBeat]):
     @override
     def on_start(self) -> None:
         settings = self.node.settings
-        key = Wallet(
-            name=settings.wallet_name, hotkey=settings.hotkey_name, path=str(settings.wallet_path)
-        ).get_hotkey()
+        key = load_signing_key(settings.wallet_path, settings.wallet_name, settings.hotkey_name)
         EvaluationLedger(self.node.path).initialize_evaluation()
         journal = ReportJournal(self.node.path, settings.chain_genesis, self.node.netuid, key, settings.destination)
         journal.initialize()

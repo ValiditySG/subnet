@@ -15,7 +15,7 @@ from uuid import uuid4
 import httpx
 import pytest
 import uvicorn
-from bittensor_wallet import Keypair
+from bittensor.sp_core import Keypair
 from pydantic import SecretStr
 from validity_protocol.credentials import CredentialRequest, ProviderQuery
 from validity_protocol.exchange import TESTNET_GENESIS, SignedRequest, SignedResponse, TaskBinding

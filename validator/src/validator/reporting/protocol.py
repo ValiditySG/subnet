@@ -7,9 +7,9 @@ import json
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from bittensor_wallet import Keypair
-from bittensor_wallet.utils import is_valid_ss58_address
+from bittensor.sp_core import Keypair
 from pydantic import AwareDatetime, Field, field_validator, model_validator
+from validity_protocol.identity import is_valid_ss58_address
 
 from validator.credentials.protocol import Digest, WireModel
 

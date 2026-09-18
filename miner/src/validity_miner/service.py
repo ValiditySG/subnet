@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from time import perf_counter
 
-from bittensor_wallet import Keypair
+from bittensor.sp_core import Keypair
 from opentelemetry import metrics
 from pylon_client.artanis import Config, Hotkey, NetUid, PylonAuthToken, PylonClient, PylonTimeout
 from validity_protocol.exchange import (

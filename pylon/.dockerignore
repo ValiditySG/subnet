@@ -1,0 +1,8 @@
+*
+!Dockerfile
+!sdk-requirements.txt
+!build-requirements.txt
+!bittensor-sdk.patch
+!turbobt-sdk.patch
+!tests/
+!tests/test_*.py

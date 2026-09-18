@@ -10,13 +10,19 @@ Pylon is the private service used by the current miner and validator to read Bit
 
 ## Obtain a compatible image
 
-Validity's applications use Bittensor `11.1.0`. Pylon `2.3.2` independently uses a wallet library. Its upstream image bundles wallet `4.0.1`, which rejects current key files containing a numeric `cryptoType` field.
+The miner, validator and Validity Pylon image all use **Bittensor `11.1.0` and its bundled `bittensor.wallet` API**. This is the latest stable SDK verified on 2026-09-18 against [PyPI](https://pypi.org/project/bittensor/11.1.0/). Existing wallet files are read without conversion.
 
-[`pylon/Dockerfile`](../pylon/Dockerfile) pins the upstream image by digest and installs wallet `4.1.1` with verified wheel hashes. Existing wallet files are read without conversion. From the repository root:
+[`pylon/Dockerfile`](../pylon/Dockerfile) builds from the pinned Pylon `2.3.2` image and verified TurboBT `1.3.1` source. Reviewed patches migrate [Pylon](../pylon/bittensor-sdk.patch) and [TurboBT](../pylon/turbobt-sdk.patch) wallet imports to the SDK and pass plain bytes when signing transactions. Their packages are rebuilt with matching dependency declarations as `2.3.2+validity.sdk11` and `1.3.1+validity.sdk11`. Pylon still uses TurboBT for chain reads and submissions.
+
+The image removes the standalone `bittensor-wallet` package, which is [superseded by Bittensor 11](https://pypi.org/project/bittensor-wallet/4.1.1/). SDK dependencies and build tools are hash-locked. The build checks dependency consistency; simply installing a newer wallet over the upstream image would leave its old imports and dependency constraints active.
+
+Build the Validity image from the repository root:
 
 ```sh
 docker build -t validity-pylon:testnet-review pylon
 ```
+
+The build runs [offline compatibility tests](../pylon/tests/test_sdk_wallet.py) covering service imports, current key files, public-only key rejection, absence of the legacy package and transaction signatures, including large signing payloads. The test keys are public development fixtures; no operator wallet or chain transaction is involved.
 
 For either full Compose deployment, publish the reviewed build to your registry and set `PYLON_IMAGE` in the application's private `.env` to its `registry/image@sha256:<digest>` reference. The validator deployment script enforces registry digests for both images.
 
@@ -27,6 +33,21 @@ PYLON_IMAGE=$(docker image inspect --format '{{.Id}}' validity-pylon:testnet-rev
 ```
 
 Run this in the terminal that will execute `docker run`. This variable chooses the Pylon container image; the Python miner and validator do not read it.
+
+### Updating the SDK pin
+
+Keep `bittensor` aligned in `validator/pyproject.toml`, `miner/pyproject.toml`, `protocol/pyproject.toml` and `pylon/sdk-requirements.in`. Regenerate the application locks and Pylon's hashed requirements, review the dependency changes, then rebuild and test the image. Pylon's existing packages are constrained to avoid unrelated upgrades:
+
+```sh
+uv pip compile pylon/sdk-requirements.in \
+  --constraints pylon/base-constraints.txt --python-version 3.13 --universal \
+  --exclude-newer '11 days' --generate-hashes --no-header --no-annotate \
+  --output-file pylon/sdk-requirements.txt
+```
+
+Also update the explicit SDK dependency pins in both patches and the compatibility test's expected version. Build backends are separately locked in `pylon/build-requirements.txt` from `pylon/build-requirements.in` using the same constraints and release-age policy.
+
+Pylon's pinned upstream image uses Python 3.13; the miner and validator use Python 3.14. Both use the same SDK release. Review and update both source patches when changing the Pylon base image or TurboBT source; the build rejects patch context mismatches. A rebuilt image takes effect only after the operator updates `PYLON_IMAGE` and recreates the sidecar while preserving its state volume.
 
 ## Pylon for manual Python runs
 

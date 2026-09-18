@@ -1,4 +1,5 @@
 # Subnet Lifecycle Specification
+# Conceptual lifecycle; consult sdk.quick_reference.yaml for current SDK calls.
 
 phases:
   1_preparation:
@@ -8,7 +9,7 @@ phases:
       - acquire_tao
     sdk:
       wallet_create: |
-        from bittensor_wallet import Wallet
+        from bittensor.wallet import Wallet
         wallet = Wallet(name="owner", hotkey="operator")
         wallet.create_if_non_existent()
     check_cost: "subtensor.get_subnet_burn_cost()"
