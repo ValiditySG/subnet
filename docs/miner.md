@@ -1,10 +1,25 @@
-# Run a Validity miner on testnet
+# Miner setup: manual Python or Docker
 
-The runnable reference miner is in [`miner/src/validity_miner/`](../miner/src/validity_miner). It receives a fictional RN query, resolves records from a packaged public board snapshot, and returns a signed finding with evidence. It does not read validator answer labels. This is a synthetic testnet implementation; real nursing-board adapters follow.
+The [reference miner](../miner/src/validity_miner) receives a fictional RN query, resolves it from a packaged public board snapshot, and returns a hotkey-signed finding. It does not read validator answer labels. Defaults are `network=test`, `netuid=568` and HTTP port `8080`; the application pins Bittensor `11.1.0`.
 
-Defaults are `network=test`, `netuid=568` and HTTP port `8080`. Start an instance only after its hotkey is registered and its public endpoint is configured.
+## Choose how to run
 
-## Configure one operator
+| | Manual Python | Docker Compose |
+| --- | --- | --- |
+| Miner process | Run the checkout with `uv` | Run a packaged miner image |
+| Prerequisites | Python 3.14, `uv`, a reachable Pylon service | Docker Engine and Compose plugin; Python 3 for the token preparation step below |
+| `MINER_IMAGE` | Unused; leave empty or omit | Required |
+| Pylon | Configure a separately managed service | Started by Compose without a wallet |
+| Settings file | `miner/.env` via `--env-file` | `miner/.env` |
+| State | Host path in `MINER_JOURNAL_PATH` | Private `miner-state` volume |
+
+**Pylon is required by the current implementation in both modes.** The miner uses its read-only API to check subnet registrations and validator permits. See the [chain-service guide](chain-service.md), including a standalone Pylon container for manual Python runs. That recipe still uses Docker for Pylon; the miner itself runs directly in Python.
+
+Each miner needs an existing registered SR25519 signing hotkey, a publicly reachable HTTP endpoint advertised on chain, and at least one admitted validator with a validator permit. Public-only hotkey files cannot sign responses. Neither launch method creates keys, registers hotkeys or advertises an endpoint automatically.
+
+Use one active process per hotkey. Stop an existing instance before starting the same identity through another method, and preserve its recovery journal (see [recovery](#recovery)).
+
+## Prepare private configuration
 
 From the repository root:
 
@@ -15,28 +30,85 @@ cp -n .env.example .env
 chmod 600 .env
 ```
 
-Review the defaults and fill in the required values in the private `.env` before starting:
+Generate distinct Pylon tokens directly into empty fields; existing values are preserved:
 
-| Setting | Value |
-| --- | --- |
-| `MINER_NETWORK`, `MINER_NETUID` | Defaults: `test`, `568` |
-| `MINER_WALLET_PATH` | Wallet directory; default `~/.bittensor/wallets` |
-| `MINER_WALLET_NAME` | Wallet name; default `default` |
-| `MINER_HOTKEY_NAME` | Hotkey name; default `default` |
-| `MINER_ALLOWED_VALIDATORS` | JSON array of admitted validator hotkeys, e.g. `["<hotkey>"]` |
-| `MINER_PYLON_OPEN_ACCESS_TOKEN`, `PYLON_METRICS_TOKEN` | Two independent random secrets for the private chain sidecar |
-| `MINER_SOURCE_VERSION` | `v1` or `v2`, matching the pilot's agreed source rollout |
-| `MINER_IMAGE` | Released miner image with `@sha256:<digest>` for Compose |
+```sh
+python3 - <<'PY'
+import secrets
+from pathlib import Path
+path = Path('.env')
+data = path.read_text()
+for name in ('MINER_PYLON_OPEN_ACCESS_TOKEN', 'PYLON_METRICS_TOKEN'):
+    data = data.replace(name + '=\n', name + '=' + secrets.token_hex(32) + '\n')
+path.write_text(data)
+path.chmod(0o600)
+PY
+```
 
-The three wallet settings match Bittensor's path, wallet name and hotkey name. `~` expands to the current user's home directory. Source runs load the wallet directly from `MINER_WALLET_PATH`; Compose mounts that host directory read-only at `/wallets` inside the miner container and passes the same wallet and hotkey names.
+Edit `.env` using the tables below. Set `MINER_ALLOWED_VALIDATORS` to a nonempty JSON list of actual validator hotkeys; the example's `[]` is a placeholder and will fail startup. If using an existing Pylon service, replace the generated open-access token with its matching token in this private file.
 
-Keep tokens in `.env`; wallet private keys remain protected files. Give container UID/GID `10001:10001` read access to the required mounted files without making them world-readable. Keep the coldkey private key offline. Do not reuse retired development wallets or state.
+Keep secrets in `.env` and wallet keys in protected files. Wallet configuration follows Bittensor defaults: directory `~/.bittensor/wallets`, wallet name `default`, hotkey name `default`. Only the wallet directory expands `~`; use an absolute or working-directory-relative path for the journal.
 
-## Run with Docker
+## Environment variables by launch method
 
-`MINER_IMAGE` selects the packaged miner version for Docker Compose. It is required only for this deployment method; the source command below runs the checked-out Python code directly.
+**Required** means supply a nonempty value, including values already provided by the example. **Optional** means omission uses the stated default. **Fixed** means Compose supplies the value. **Not forwarded** means adding the variable to `.env` alone does not change the supplied Compose deployment. Omit optional values to use defaults; an empty string is not generally a default.
 
-On the miner operator's host, after registration and configuration:
+### Required settings
+
+| Variable | Docker | Manual Python | Value / purpose |
+| --- | --- | --- | --- |
+| `MINER_CHAIN_GENESIS` | Required | Required | Keep the accepted testnet hash supplied in `.env.example`, shown below. |
+| `MINER_ALLOWED_VALIDATORS` | Required | Required | Nonempty JSON array of SS58 hotkeys, e.g. `["<validator-hotkey>"]` after replacing the placeholder. |
+| `MINER_PYLON_OPEN_ACCESS_TOKEN` | Required | Required | Must match Pylon's open-access token. |
+| `MINER_PYLON_ADDRESS` | Fixed: `http://pylon:8000` | Required | Example: `http://127.0.0.1:8000` for a host-accessible sidecar. No Python default. |
+| `MINER_IMAGE` | Required | Unused | Reviewed miner registry image with `@sha256:<digest>`. |
+| `PYLON_IMAGE` | Required | Unused by Python | Reviewed [compatible Pylon image](chain-service.md) with `@sha256:<digest>`. A separately launched Pylon container also needs an image. |
+| `PYLON_METRICS_TOKEN` | Required | Unused by Python | Separate Pylon metrics credential. Configure it in the sidecar when using the standalone recipe. |
+
+The accepted testnet genesis is:
+
+`0x8f9cf856bf558a14440e75569c9e58594757048d7b3a84b5d25f6bd978263105`
+
+The miner needs no Hippius credentials; validators publish the scores.
+
+### Optional settings and defaults
+
+| Variable | Docker | Manual Python | Default / behavior |
+| --- | --- | --- | --- |
+| `MINER_NETWORK` | Fixed: `test` | Optional | `test`; this release accepts only testnet. |
+| `MINER_NETUID` | Optional | Optional | `568`. |
+| `MINER_WALLET_PATH` | Optional; host mount source | Optional; wallet directory | `~/.bittensor/wallets`. Compose passes `/wallets` inside the container. |
+| `MINER_WALLET_NAME` | Optional | Optional | `default`; change to the existing wallet name. |
+| `MINER_HOTKEY_NAME` | Optional | Optional | `default`; change to the existing hotkey name. |
+| `MINER_PORT` | Optional; published host port | Optional; listening port | `8080`. Compose always listens on `8080` inside the container. Manual listening ports must be 1024–65535. Advertise the externally reachable port on chain. |
+| `MINER_BIND_HOST` | Not forwarded | Optional | `0.0.0.0`; bind address for the Python HTTP server. |
+| `MINER_JOURNAL_PATH` | Fixed: `/var/lib/validity-miner/requests.sqlite3` | Optional | Python default: `/var/lib/validity-miner/requests.sqlite3`. The example sets `./state/requests.sqlite3` for a writable source-run location. |
+| `MINER_SOURCE_VERSION` | Optional | Optional | `v1`; supports `v1` and `v2`. Match the pilot's agreed dataset version. |
+| `MINER_REQUESTS_PER_MINUTE` | Optional | Optional | `120` per validator; range 1–1000. |
+
+Compose forwards only the variables explicitly listed in its service environment. For a setting marked fixed or not forwarded, change the Compose environment and required mounts explicitly to customize it; adding it to `.env` alone is insufficient.
+
+## Manual Python setup
+
+1. Prepare `.env` above. Set the required manual values, wallet identity and a writable `MINER_JOURNAL_PATH`.
+2. Start or connect to [Pylon for manual Python runs](chain-service.md#pylon-for-manual-python-runs). The miner needs only open access, with no signing identity in its sidecar. The default Compose sidecar publishes no host port, so host Python cannot reach it at `localhost` without additional configuration.
+3. Ensure the configured IP/port is reachable and matches the miner endpoint advertised on testnet. From the repository root, run:
+
+```sh
+cd miner
+uv sync --frozen
+uv run --frozen miner --env-file .env
+```
+
+Logs appear in the terminal. Press **Ctrl+C** to stop; use the same command and journal to restart. Existing shell variables take precedence over `.env`, so clear conflicting exported settings when switching configs. Relative paths such as `./state/requests.sqlite3` resolve from the working directory (`miner/` here), not from the `.env` file's directory.
+
+`MINER_IMAGE`, `PYLON_IMAGE` and `PYLON_METRICS_TOKEN` are not read by the Python miner. Leave Docker-only fields empty or omit them for this launch path. Pylon still needs its own configuration.
+
+## Docker Compose setup
+
+1. Prepare `.env` above, including the three Docker-only required fields. Obtain reviewed registry digests for the miner and [compatible Pylon build](chain-service.md).
+2. Set `MINER_WALLET_PATH` to a deployment wallet directory containing the required hotkey. The entire directory is mounted read-only; keep coldkey private keys outside it. Give container UID/GID `10001:10001` read and directory-traversal access to the required files without making them world-readable.
+3. From the repository root, run:
 
 ```sh
 cd miner
@@ -44,31 +116,46 @@ docker compose --env-file .env config --quiet
 docker compose --env-file .env pull
 docker compose --env-file .env up -d
 docker compose ps
-docker compose logs --tail=100 miner
+docker compose logs --follow --tail=100 miner
 ```
 
-Do not print the resolved Compose configuration: it contains secrets. The deployment publishes only the miner's HTTP port (`8080` by default). Its chain sidecar has read access and no wallet or signing identity. The miner runs without root privileges on a read-only filesystem, with a private state volume and bounded logs. Admission fails closed until the sidecar is ready. Publishing a container port does not register the endpoint on chain.
+Compose validates required substitutions, but `config --quiet` does not validate the allowlist, signing key or chain admission. The miner rejects invalid runtime settings, and admission fails closed until Pylon is ready. Inspect the logs and health endpoint below. Never print the resolved Compose environment: it includes secrets.
 
-For a source build, run from the **repository root** so Docker can include the shared protocol package:
+Ctrl+C stops log following. Stop the miner itself with:
+
+```sh
+docker compose stop miner
+```
+
+Run `docker compose up -d` in `miner/` to restart. Keep the `miner-state` volume during updates and restarts. To update an image, review its new digest in `.env`, then run `docker compose pull` and `docker compose up -d`.
+
+The miner container runs as UID/GID `10001:10001` with a read-only root filesystem and bounded logs. Only the miner HTTP port is published; Pylon has no published port or wallet. Publishing a Docker port does not advertise the endpoint on chain.
+
+To build the miner image yourself, run from the repository root so the shared protocol is included:
 
 ```sh
 docker build -f miner/Dockerfile -t validity-miner:testnet-review .
 ```
 
-Publish a reviewed image and use its registry digest in the deployment configuration.
+Publish the reviewed build to your registry and use its registry digest in `MINER_IMAGE`.
 
-## Run from source
+## Verify operation
 
-Pylon supplies the current subnet registrations and validator permits used to admit requests. Source runs still need this chain connection; it queries the real testnet and is separate from the miner's HTTP evaluation endpoint.
-
-Override the three wallet settings if the existing wallet uses different values. Set `MINER_JOURNAL_PATH` to this host's private state path and `MINER_PYLON_ADDRESS` to a trusted, privately reachable testnet sidecar using the configured token. Then, from `miner/`:
+With the default port, run from another terminal on the miner host:
 
 ```sh
-uv sync --frozen
-uv run --frozen miner --env-file .env
+curl --fail http://127.0.0.1:8080/health
 ```
 
-Both start methods require an existing wallet. They do not create keys, spend tokens, register hotkeys or advertise endpoints automatically.
+Expected response:
+
+```json
+{"status":"ok","scope":"synthetic-rn"}
+```
+
+Use your configured host port if it differs. This checks the HTTP server, not chain admission or a successful signed evaluation. The admitted validator's logs should show `Credential result` with `outcome=verified` after it discovers and queries this miner's advertised endpoint.
+
+A port-in-use or journal-lock failure usually means another instance is running. Stop the existing instance and preserve its journal and lock file. For a rejected request, verify the allowlist, validator permit, matching chain/subnet and Pylon token/address.
 
 ## Serving requirements
 

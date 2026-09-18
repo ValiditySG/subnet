@@ -1,73 +1,160 @@
-# Run a Validity validator on testnet
+# Validator setup: manual Python or Docker
 
-This release uses fictional RN evaluations with production deployment practices. Defaults are `network=test` and `netuid=568`. Run one operator identity on each host and start only after its hotkey is registered and has a validator permit.
+Validity evaluates fictional RN records on Bittensor testnet. Defaults are `network=test` and `netuid=568`; the application pins Bittensor `11.1.0`. Real nursing-board verification follows this synthetic pilot.
 
-## Operator configuration
+## Choose how to run
 
-`VALIDATOR_IMAGE` selects the packaged validator version for Docker Compose. It is a container image reference, not a wallet or chain setting. Running the Python validator directly with `uv run --frozen validator --env-file <path>` does not use this variable; source runs must configure their own private chain-sidecar address and identity settings.
+| | Manual Python | Docker Compose |
+| --- | --- | --- |
+| Validator process | Run the checkout with `uv` | Run a packaged validator image |
+| Prerequisites | Python 3.14, `uv`, a reachable Pylon service | Docker Engine, Compose plugin, Python 3 for the installer, reviewed image digests |
+| `VALIDATOR_IMAGE` | Unused; leave empty or omit | Required |
+| Pylon | Configure a separately managed service | Started by Compose |
+| Settings file | `envs/deployed/.env` via `--env-file` | `envs/deployed/.env` |
+| State | Host path in `VALIDATOR_LEDGER_PATH` | Private `validator-state` volume |
 
-Pylon is the chain sidecar: it connects to the real Bittensor testnet, reads blocks and registered miners, and submits the validator's weights. The current implementation requires it for both Docker and source runs. It is separate from Hippius score storage.
+**Pylon is required by the current implementation in both modes.** It reads chain state and submits weights using the validator hotkey. The [chain-service guide](chain-service.md) explains its setup, including a standalone Pylon container for manual Python runs. That recipe still uses Docker for Pylon; the validator itself runs directly in Python.
 
-From a reviewed checkout:
+Use one active process per hotkey. The wallet must already contain an SR25519 signing hotkey registered on the subnet with a validator permit. No certificate is needed. Stop an existing instance before starting the same identity through another method; keep its recovery journal when switching methods (see [recovery](#recovery-and-backups)).
+
+## Prepare private configuration
+
+From the repository root:
 
 ```sh
 bash installer/install.sh
 ```
 
-This creates `envs/deployed/.env` with mode `0600` and distinct random chain-sidecar tokens. It preserves an existing file and starts no services. Review the defaults and fill in the required values:
+This creates `envs/deployed/.env` with mode `0600` and three distinct random Pylon tokens. It preserves an existing file and starts no services. Edit the file using the tables below. When using an existing Pylon service, its configured tokens must match the validator's tokens.
 
+Keep secrets in this private file. Wallet keys remain protected files. The three wallet settings follow Bittensor conventions: directory `~/.bittensor/wallets`, wallet name `default`, hotkey name `default`. Only the wallet directory setting expands `~`; use an absolute path or a working-directory-relative path for the ledger.
 
-| Setting                                              | Value                                                                     |
-| ---------------------------------------------------- | ------------------------------------------------------------------------- |
-| `VALIDATOR_IMAGE`                                    | Published validator image with `@sha256:<digest>`                         |
-| `VALIDATOR_NETWORK`, `VALIDATOR_NETUID`             | Defaults: `test`, `568`                                                   |
-| `VALIDATOR_TEMPO`                                    | Actual subnet tempo; do not copy an assumed development value             |
-| `VALIDATOR_WALLET_PATH`                             | Wallet directory; default `~/.bittensor/wallets`                           |
-| `VALIDATOR_WALLET_NAME`                             | Wallet name; default `default`                                           |
-| `VALIDATOR_HOTKEY_NAME`                             | Hotkey name; default `default`                                           |
-| `HIPPIUS_BUCKET`                                     | `validity-testnet`                                                        |
-| `HIPPIUS_ACCESS_KEY_ID`, `HIPPIUS_SECRET_ACCESS_KEY` | This operator's dedicated ACL token pair                                  |
+## Environment variables by launch method
 
+**Required** means supply a nonempty value, including values already provided by the example. **Conditional** means required only in the stated mode. **Optional** means omission uses the stated default. **Fixed** means Compose supplies the value. **Not forwarded** means adding the variable to `.env` alone does not change the supplied Compose deployment. Omit optional values to use defaults; an empty string is not generally a default.
 
-The three wallet settings match Bittensor's path, wallet name and hotkey name. `~` expands to the current user's home directory. Compose uses `VALIDATOR_WALLET_PATH` as the host directory and mounts it read-only at `/wallets` for the validator, preflight and chain sidecar; all use the same wallet and hotkey names. Set a custom path in this variable when needed.
+### Required and conditional settings
 
-Service tokens live only in `.env`. Wallet private keys remain protected files mounted read-only; never include a coldkey private key in the deployment. Give container UID/GID `10001:10001` read access to only the required files. Do not make private files world-readable. Do not reuse previous development wallets or recovery databases.
+| Variable | Docker | Manual Python | Value / purpose |
+| --- | --- | --- | --- |
+| `VALIDATOR_CHAIN_GENESIS` | Required | Required | Keep the testnet hash supplied in `.env.example`, shown below. |
+| `VALIDATOR_TEMPO` | Required | Required | Actual subnet tempo in blocks, at least 20; read it from the chain. No default is assumed. |
+| `VALIDATOR_PYLON_OPEN_ACCESS_TOKEN` | Required | Required | Must match Pylon's open-access token. Generated by the installer. |
+| `VALIDATOR_PYLON_IDENTITY_TOKEN` | Required | Required | Must match this validator's Pylon identity token. Generated by the installer. |
+| `VALIDATOR_PYLON_SERVICE_ADDRESS` | Fixed: `http://pylon:8000` | Required | Example: `http://127.0.0.1:8000` for a host-accessible sidecar. No Python default. |
+| `VALIDATOR_PYLON_IDENTITY_NAME` | Fixed: `validator` | Required | Example: `validator`. Pylon must map this identity to the same wallet, hotkey and netuid. No Python default. |
+| `HIPPIUS_BUCKET` | Required | Required | Example: `validity-testnet`. Required even when publishing is disabled, to bind recovery state to its destination. |
+| `HIPPIUS_ACCESS_KEY_ID` | Conditional | Conditional | Required when `HIPPIUS_ENABLED=true`: this validator team's ACL access key. |
+| `HIPPIUS_SECRET_ACCESS_KEY` | Conditional | Conditional | Required when `HIPPIUS_ENABLED=true`: the matching secret key. |
+| `VALIDATOR_IMAGE` | Required | Unused | Reviewed validator registry image with `@sha256:<digest>`. |
+| `PYLON_IMAGE` | Required | Unused by Python | Reviewed [compatible Pylon image](chain-service.md) with `@sha256:<digest>`. A separately launched Pylon container also needs an image. |
+| `PYLON_METRICS_TOKEN` | Required | Unused by Python | Separate Pylon metrics credential, generated by the installer. Configure it in the sidecar when using the standalone recipe. |
 
-The deployment fixes the chain endpoint to Bittensor testnet. The genesis hash was read directly from that endpoint on 2026-09-16:
+The accepted testnet genesis is:
 
 `0x8f9cf856bf558a14440e75569c9e58594757048d7b3a84b5d25f6bd978263105`
 
-The runtime rejects other configured chain IDs. Chain data is trusted through the operator's sidecar; the preflight checks its subnet identity and validator registration/permit. See the [official network reference](https://preview.bittensor.com/docs/concepts/network) for the public endpoint.
+### Optional settings and defaults
 
-## Miner transport and authentication
+| Variable | Docker | Manual Python | Default / behavior |
+| --- | --- | --- | --- |
+| `VALIDATOR_NETWORK` | Fixed: `test` | Optional | `test`; this release accepts only testnet. |
+| `VALIDATOR_NETUID` | Optional | Optional | `568`; must match the Pylon identity's subnet. |
+| `VALIDATOR_MODE` | Fixed: `synthetic` | Optional | `synthetic`; the only supported evaluation mode. |
+| `VALIDATOR_WALLET_PATH` | Optional; host mount source | Optional; wallet directory | `~/.bittensor/wallets`. Compose passes `/wallets` inside the containers. |
+| `VALIDATOR_WALLET_NAME` | Optional | Optional | `default`; change to the existing wallet name. |
+| `VALIDATOR_HOTKEY_NAME` | Optional | Optional | `default`; change to the existing hotkey name. |
+| `VALIDATOR_LEDGER_PATH` | Fixed: `/var/lib/validity/credentials.sqlite3` | Optional | Python default: `/var/lib/validity/credentials.sqlite3`. The example sets `./state/credentials.sqlite3` for a writable source-run location. |
+| `HIPPIUS_ENABLED` | Optional | Optional | `true`. Set `false` for a chain-only test; evaluation and weights continue, but scores are not published. |
+| `HIPPIUS_VERIFY_READBACK` | Optional | Optional | `true`; verify uploaded reports by reading them back. |
+| `HIPPIUS_TIMEOUT_SECONDS` | Not forwarded | Optional | `5` seconds per storage socket timeout; greater than 0 and at most 30. |
+| `VALIDATOR_TOTAL_PROCESSING_TIMEOUT` | Not forwarded | Optional | 30 seconds; use a duration such as `PT30S`, greater than 0 and at most 2 minutes. |
+| `VALIDATOR_MAX_SCORE_AGE` | Not forwarded | Optional | 30 minutes; use a positive duration such as `PT30M`. |
+| `VALIDATOR_FIXTURE_DIR` | Not forwarded | Optional | Packaged synthetic dataset. Override only for a reviewed dataset rollout. |
+| `VALIDATOR_LOGGING_FORMAT` | Not forwarded | Optional | `json`; `console` is useful for a foreground run. |
+| `VALIDATOR_LOGGING_ROOT_LEVEL` | Not forwarded | Optional | `INFO`. |
+| `VALIDATOR_LOGGING_LEVELS` | Not forwarded | Optional | JSON map of logger levels; default `{"httpx":"WARNING","httpcore":"WARNING"}`. |
+| `OTEL_SDK_DISABLED` | Fixed: `true` | Optional | Python default `false`; example sets `true`. Trace export also needs an endpoint. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Not forwarded | Optional | Empty; no trace export by default. Use this standard variable so both the application and exporter receive the endpoint. |
+| `ENVIRONMENT` | Fixed: `testnet` | Optional | Log/telemetry label; Python default `production`. Does not select the chain. |
+| `SENTRY_DSN` | Not forwarded | Optional | Empty; error reporting is off until configured. |
 
-Validators contact registered public miner endpoints over **plain HTTP only, with no TLS, HTTPS, or certificates**. The endpoint is `POST http://<registered-ip>:<port>/v1/evaluate`; the miner's default port is `8080`. Redirects, proxy discovery and private-address endpoints are disabled.
+Advanced optional telemetry resource labels and aliases are defined in [OtelSettings](../validator/src/validator/otel.py). To customize a value that Compose fixes or does not forward, explicitly update the Compose service environment and any required mounts; `.env` is not automatically passed wholesale into a container.
 
-The [signed RN exchange](../protocol/synthetic-rn-v1/README.md) authenticates both participants with their existing hotkeys. Each signature binds both hotkeys, the chain, subnet and task. Miners check the validator's signature, configured hotkey admission, registration and validator permit before evaluating. Validators verify the signed miner response. No public validator callback listener is needed.
+## Manual Python setup
 
-Hotkey signatures authenticate messages and detect tampering; they do not encrypt traffic. This transport is for the current fictional RN evaluations. Real credential data requires a separate confidentiality design.
+1. Prepare `.env` above. Set the required manual values, wallet identity and a writable `VALIDATOR_LEDGER_PATH`.
+2. Start or connect to [Pylon for manual Python runs](chain-service.md#pylon-for-manual-python-runs). The app and sidecar must use the same validator identity and tokens. The default Compose sidecar publishes no host port, so it cannot be reached from host Python at `localhost` without additional configuration.
+3. For evaluation and chain-weight testing without storage credentials, set `HIPPIUS_ENABLED=false`. Keep `HIPPIUS_BUCKET` set. With publishing enabled, provide both Hippius credentials.
+4. From the repository root, run:
 
-## Start and update
+```sh
+cd validator
+uv sync --frozen
+uv run --frozen python -m validator.preflight --env-file ../envs/deployed/.env
+```
 
-After the registered wallet has its validator permit and all required configuration is present:
+Proceed only after preflight passes. In the same directory:
+
+```sh
+uv run --frozen validator --env-file ../envs/deployed/.env
+```
+
+The process stays in the foreground and logs to the terminal. Press **Ctrl+C** to stop it; use the same command and journal to restart. An existing shell environment takes precedence over the `.env` values, so clear conflicting exported settings when switching configurations. Relative paths such as `./state/credentials.sqlite3` resolve from the working directory (`validator/` here), not from the `.env` file's directory.
+
+`VALIDATOR_IMAGE`, `PYLON_IMAGE` and `PYLON_METRICS_TOKEN` are not read by the Python validator. Leave Docker-only fields empty or omit them for this launch path. A separately managed Pylon service still needs its own configuration.
+
+## Docker Compose setup
+
+1. Prepare `.env` above, including the three Docker-only required fields. Obtain reviewed registry digests for the validator and the [compatible Pylon build](chain-service.md).
+2. Set `VALIDATOR_WALLET_PATH` to a deployment wallet directory containing only the required hotkey and public coldkey file. The entire configured directory is mounted read-only; keep coldkey private keys outside it. Give container UID/GID `10001:10001` read and directory-traversal access to the required files without making them world-readable.
+3. From the repository root, run:
 
 ```sh
 bash installer/update_compose.sh
 ```
 
-The script checks permissions and an immutable image digest, validates Compose without printing secrets, pulls pinned images, starts the private chain sidecar, runs read-only preflight, and starts the validator only if preflight passes. If the sidecar is still syncing, retry after it is ready. There are no unattended update jobs.
+The script checks `.env` permissions and both image digests, validates Compose without displaying secrets, pulls images, starts Pylon, runs read-only preflight, and starts the validator only if preflight passes. If Pylon is still syncing, retry once it is ready. It also applies an explicitly reviewed image update; no unattended updates run.
 
-Preflight checks settings, packaged synthetic data, wallet access, sidecar subnet identity, registration, permit and Hippius read access. It does not prove miner reachability, PUT permission, actual chain-weight confirmation or future availability. Verify subnet tempo and weight constraints before starting; the deployment does not modify them.
+From the repository root, inspect the deployment:
 
 ```sh
 cd envs/deployed
 docker compose ps
-docker compose logs --tail=100 validator
+docker compose logs --follow --tail=100 validator
 ```
 
-The validator runs without root privileges on a read-only root filesystem. Its named state volume is private to this operator. Log rotation is bounded; no metrics or chain-sidecar port is published. Container health requires a successful evaluation tick within three minutes. Optional tracing is disabled by default; no external telemetry destination is configured.
+Pressing Ctrl+C here stops log following. To stop the validator process:
 
-The current transport processes one assignment at a time. A round takes five tasks per discovered miner. Size the pilot and score-age threshold so complete rounds remain fresh. It pauses rewards if complete current positive scores are unavailable.
+```sh
+docker compose stop validator
+```
+
+Use `bash installer/update_compose.sh` from the repository root to start it again with preflight. Keep the `validator-state` and `pylon-state` volumes; do not remove them during routine restarts.
+
+The validator container runs as UID/GID `10001:10001` with a read-only root filesystem and bounded logs. The deployment publishes no validator, Pylon or metrics port. Health requires an evaluation heartbeat within three minutes.
+
+To build the validator image yourself, run from the repository root so the shared protocol is included:
+
+```sh
+docker build -f validator/Dockerfile -t validity-validator:testnet-review .
+```
+
+Publish the reviewed build to your registry and place its registry digest in `VALIDATOR_IMAGE` before using the deployment script. A local tag alone does not satisfy that script's digest check.
+
+## Verify operation
+
+Preflight checks settings, packaged data, wallet signing access, Pylon subnet identity, registration, permit and Hippius read access when enabled. It does not establish miner reachability, PUT permission or confirmed chain weights. It checks the configured genesis value; independently verify the chain endpoint's genesis before trusting the sidecar.
+
+Look for `RN evaluation ready` followed by `Credential result` entries with `outcome=verified`. The loop handles one assignment at a time and five cases per discovered miner. Weights pause until a complete, current positive round is available. `Weight batch queued` means Pylon accepted the proposal; confirm the actual chain row independently after any commit–reveal delay.
+
+For `Another validator is using this state directory`, stop the existing instance and wait for it to exit. Preserve the journal and lock file. If preflight cannot reach Pylon, check the manual host address versus the Compose service address and matching tokens. Never print the resolved Compose environment: it includes secrets.
+
+## Miner transport
+
+Validators contact `POST http://<registered-ip>:<port>/v1/evaluate` over **plain HTTP only, with no TLS, HTTPS or certificates**. Hotkey signatures bind both participants, the chain, subnet and task. Miners enforce their validator allowlist, registration, permit and replay checks. Validators verify signed responses; no public validator callback listener is needed. Redirects and private-address miner endpoints are rejected.
+
+These payloads are fictional and unencrypted. Real credential data needs a separate confidentiality design. See the [signed RN exchange](../protocol/synthetic-rn-v1/README.md).
 
 ## Acceptance on the live subnet
 
